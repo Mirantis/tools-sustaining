@@ -46,8 +46,7 @@ def read_config():
 
 def apply_patches():
     patches = cfg['patches']
-    if reverse != "": 
-        patches=reversed(cfg['patches'])
+    if reverse != "": patches.reverse()
     for node in cfg['nodes']:
         for patch in patches:
             LOG("\n>>>>>>>>>START of PATCHING {0} with {1} (dry-run:{2})\n\n".format(
