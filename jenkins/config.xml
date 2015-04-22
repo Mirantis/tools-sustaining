@@ -1,0 +1,111 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>NAME</name>
+          <description>Required!</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ISO_URL</name>
+          <description>Required! Can be direct URL or URL to torrent-file. Public ISOs are available here - http://srv08-srt.srt.mirantis.net/fuelweb/</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>NODES_COUNT</name>
+          <description>Quantity of cluster nodes without fuel-master node.</description>
+          <defaultValue>5</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ADMIN_RAM</name>
+          <description></description>
+          <defaultValue>4096</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>ADMIN_CPU</name>
+          <description></description>
+          <defaultValue>2</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SLAVE_RAM</name>
+          <description></description>
+          <defaultValue>2048</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>SLAVE_CPU</name>
+          <description></description>
+          <defaultValue>1</defaultValue>
+        </hudson.model.StringParameterDefinition>
+        <org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition plugin="nodelabelparameter@1.5.1">
+          <name>Label of slave</name>
+          <description>Here you can choose on which slave to run job</description>
+          <defaultValue>MAIN</defaultValue>
+          <allNodesMatchingLabel>false</allNodesMatchingLabel>
+          <triggerIfResult>allCases</triggerIfResult>
+          <nodeEligibility class="org.jvnet.jenkins.plugins.nodelabelparameter.node.AllNodeEligibility"/>
+        </org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>PREPARE_CLUSTER</name>
+          <description>Check it to predefine cluster config</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>NETWORK_TYPE</name>
+          <description>Choose a network type or leave it empty</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>neutron_vlan</string>
+              <string>neutron_gre</string>
+              <string>nova</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>RELEASE</name>
+          <description>Choose base for deployment</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>CentOS</string>
+              <string>Ubuntu</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
+          <name>HA</name>
+          <description>High availability mode</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>HA</string>
+              <string>NO_HA</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="hudson.scm.NullSCM"/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers/>
+  <concurrentBuild>true</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>set -x
+cd /home/jenkins/workspace/deploy_cluster/
+export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}-${NAME}
+export PYTHONUNBUFFERED=1
+python build_cluster.py</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers>
+    <org.jenkinsci.plugins.builduser.BuildUser plugin="build-user-vars-plugin@1.4"/>
+  </buildWrappers>
+</project>
