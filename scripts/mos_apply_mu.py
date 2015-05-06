@@ -38,7 +38,7 @@ try_offline = False
 really = False
 check = False
 
-master_ip = "10.20.0.2"
+master_ip = None
 path = "custom.pkg"
 install_custom = False
 pkgs = None
@@ -74,10 +74,10 @@ Required arguments:
                 OR
     --check             Check status of selected nodes
 
+    --master-ip         IP-Address of Fuel-master node
+
 Optional arguments:
 
-    --master-ip         IP-Address of Fuel-master node
-                            default: 10.20.0.2
     --offline           Add to update nodes which are currently offline in fuel
                             (can cause significant timeouts)
     --user              Username used in Fuel-Keystone authentication
@@ -145,18 +145,21 @@ Mirantis, 2015
             master_ip = cmd.split('=')[1]
 
     if (env_id > 0) and (all_envs):
-        print ("You should only select either --env-id or --all-envs.")
         print (usage)
+        print ("ERROR: You should only select either --env-id or --all-envs.")
         sys.exit(5)
     if (env_id == 0) and (not all_envs):
-        print ("At least one option (env-id or all-envs) must be set.")
         print (usage)
+        print ("ERROR: At least one option (env-id or all-envs) must be set.")
         sys.exit(6)
     if really and check:
-        print ("You should use either --check or --update. Not both.")
         print (usage)
+        print ("ERROR: You should use either --check or --update. Not both.")
         sys.exit(7)
-
+    if master_ip is None:
+        print (usage)
+        print ("ERROR: --master-ip is required! Set with --master-ip=X.X.X.X")
+        sys.exit(110)
 
 def get_downloads_list():
     global pkgs
@@ -234,6 +237,11 @@ def do_node_update(nodes, env_list):
 
     print ("Selected nodes: " + ", ".join([x[0] for x in to_update]))
     packages_to_install = get_downloads_list()
+    if pkgs is not None:
+        print ("Custom packages will be installed")
+    else:
+        print("No custom packages will be installed")
+
     if really:
         if packages_to_install is not None:
             packages_download()
@@ -241,6 +249,8 @@ def do_node_update(nodes, env_list):
             print ("Unable to get packages list from file {0}".format(path))
 
     for ip, os_version in to_update:
+        print ("Full log for {0} is located at /var/log/remote/"
+               "{0}/mos_apply_mu.log".format(ip))
         send_shell_script(ip, os_version)
         if check:
             check_status(ip)
@@ -281,6 +291,37 @@ def send_shell_script(ip, os_version):
         'centos': '/bin/rpm -Uvh'
     }
 
+    apache_user = {
+        'ubuntu': 'horizon',
+        'centos': 'apache'
+    }
+
+    apache_restart = {
+        'ubuntu': 'service apache2 restart',
+        'centos': 'service httpd restart'
+    }
+
+    murano_fix = """
+if [ -a /usr/bin/modify-horizon-config.sh ]
+then
+    /usr/bin/modify-horizon-config.sh uninstall
+    export HORIZON_CONFIG=/usr/share/openstack-dashboard/openstack_dashboard/settings.py
+    export MURANO_SSL_ENABLED=False
+    export USE_KEYSTONE_ENDPOINT=True
+    export USE_SQLITE_BACKEND=False
+    export APACHE_USER="{apache_user}"
+    export APACHE_GROUP="{apache_user}"
+    /usr/bin/modify-horizon-config.sh install
+    /usr/share/openstack-dashboard/manage.py collectstatic --noinput
+    {apache_restart}
+else
+    echo "Murano is not installed. Fix skipped."
+fi
+    """.format(
+        apache_user=apache_user[os_version],
+        apache_restart=apache_restart[os_version]
+    )
+
     package_template = """
 FILE="{0}"
 FILEMD="{1}"
@@ -299,11 +340,11 @@ fi
             package_text += package_template.format(name, get_md5_from_file(
                                                     dest+name))
     except:
-        msg = "{0} will be updated without custom packages".format(ip)
-        print(msg)
         pass
 
     head_of_script = """#!/bin/bash
+exec > >(logger -tmos_apply_mu) 2>&1
+
 set -x
 TMPDIR="/tmp"
 TOTAL_COUNT=0
@@ -352,27 +393,30 @@ install_package()
 
 %%packages_install%%
 
-echo "REPO_UPD=$REPO_STATE;PKGS=$SUCCESS_COUNT\
-of $TOTAL_COUNT INSTALLED" >> $STATUS
+%%murano_fix%%
+
+echo "REPO_UPD=$REPO_STATE;CUSTOM=$SUCCESS_COUNT of $TOTAL_COUNT INSTALLED" >> $STATUS
 
 """
     total = head_of_script\
         .replace("%%install%%", pkg_install_tool[os_version])\
         .replace("%%master_ip%%", master_ip)\
         .replace("%%packages_install%%", package_text)\
-        .replace("%%repo_install%%", repo_install[os_version])
+        .replace("%%repo_install%%", repo_install[os_version])\
+        .replace("%%murano_fix%%", murano_fix)
 
     if really:
         cmd = [
             "ssh",
             ip,
             "cat - > /root/mos_update.sh ; chmod +x /root/mos_update.sh; "
-            "(nohup /root/mos_update.sh > /var/log/mos_apply_mu.log 2>&1) &"
+            "(nohup /root/mos_update.sh > /dev/null 2>&1) &"
         ]
-        proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                stderr=None)
-        print(proc.communicate(input=total))
+        with open(os.devnull,'w') as DNULL:
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=DNULL)
+        proc.communicate(input=total)
         proc.wait()
         if proc.returncode == 0:
             print ("Script is running on {0}".format(ip))
