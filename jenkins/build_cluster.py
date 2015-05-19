@@ -305,8 +305,8 @@ def start_node(name, admin=False):
     <timer name='rtc' tickpolicy='catchup' track='wall'>
       <catchup threshold='123' slew='120' limit='10000'/>
     </timer>
-    <timer name='pit' tickpolicy='delay'/>
-    <timer name='hpet' present='no'/>
+    <timer name='hpet' present='yes'/>
+    <timer name='kvmclock' present='yes'/>
   </clock>
   <on_poweroff>destroy</on_poweroff>
   <on_reboot>restart</on_reboot>
@@ -423,6 +423,7 @@ def send_keys(instance):
         " netmask={netmask}\n"
         " gw={gw}\n"
         " dns1={gw}\n"
+        " showmenu=no\n"
         " <Enter>\n"
     ).format(
         ip=str(cfg["ADMIN_SUBNET"].ip + 2),
