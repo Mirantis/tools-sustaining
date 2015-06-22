@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2013 - 2015 Mirantis, Inc.
+# Copyright 2015 Mirantis, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -109,7 +109,7 @@ Examples:
     States may be the following (separate for each node):
         STARTED - script has been started and it's still working
         PACKAGES_INSTALLING - script is installing custom packages
-        REPO_UPD=OK;PKGS=0 of 2 INSTALLED - execution is over,
+        REPO_UPD=OK;CUSTOM=0 of 2 INSTALLED - execution is over,
             maintenance update has been successfuly installed
             but installation of custom packages was unsuccessful
 
@@ -143,6 +143,9 @@ Mirantis, 2015
             install_custom = True
         if '--master-ip' in cmd:
             master_ip = cmd.split('=')[1]
+        if '--version' in cmd:
+            print ("VER_ID: 22062015")
+            sys.exit(19)
 
     if (env_id > 0) and (all_envs):
         print (usage)
@@ -221,7 +224,7 @@ def check_status(ip):
         print("Node {0} state: {1}".format(ip, state))
         return True
     else:
-        print("Node {0} FAILURE!".format(ip))
+        print("Node {0}: no updates information found.".format(ip))
         return False
 
 
@@ -249,7 +252,7 @@ def do_node_update(nodes, env_list):
             print ("Unable to get packages list from file {0}".format(path))
 
     for ip, os_version in to_update:
-        print ("Full log for {0} is located at /var/log/remote/"
+        print ("{0}'s log: /var/log/remote/"
                "{0}/mos_apply_mu.log".format(ip))
         send_shell_script(ip, os_version)
         if check:
