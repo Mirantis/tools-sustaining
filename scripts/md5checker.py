@@ -185,7 +185,7 @@ class Gatherer(object):
     def _store_gathered(self):
         if self.cfg['data']:
             with open(self.cfg['filename'], 'w') as fp:
-                json.dump(self.cfg['data'], fp)
+                json.dump(self.cfg['data'], fp, indent=2)
 
     def do(self):
         self._gather()
@@ -203,7 +203,7 @@ class Checker(Gatherer):
                 self.old_cfg['data'] = json.load(fp)
         except:
             usage("Datafile not accessible!")
-        if self.cfg['release'] not in self.cfg['data'].keys():
+        if self.cfg['release'] not in self.old_cfg['data'].keys():
             usage("Target release is not in database!")
 
 
