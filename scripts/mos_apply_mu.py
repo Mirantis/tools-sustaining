@@ -282,7 +282,9 @@ def send_shell_script(ip, os_version):
                     "|| echo -e \"\\ndeb http://{0}:8080/updates/ubuntu "
                     "precise main\" >> /etc/apt/sources.list)\n"
                     "apt-get update\n"
-                    "apt-get upgrade -y\n".format(master_ip),
+                    "apt-get -o Dpkg::Options::=\"--force-confdef\" -o "
+                    "Dpkg::Options::=\"--force-confold\" -y "
+                    "upgrade\n".format(master_ip),
 
         'centos':   "yum-config-manager --add-repo=http://{0}:8080/updates/"
                     "centos/os/x86_64/\nyum update --skip-broken -y "
