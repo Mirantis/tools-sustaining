@@ -331,12 +331,12 @@ def start_node(name, admin=False):
     </controller>
     <interface type='network'>
       <source network='{admin_net}'/>
-      <model type='virtio'/>
+      <model type='e1000'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
     <interface type='network'>
       <source network='{public_net}'/>
-      <model type='virtio'/>
+      <model type='e1000'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x04' function='0x0'/>
     </interface>
     <serial type='pty'>
@@ -448,11 +448,11 @@ def inject_ifconfig_ssh():
         "BOOTPROTO=static\n" \
         "NM_CONTROLLED=no\n" \
         "IPADDR={ip}\n" \
-        "PREFIX={prefix}\n" \
+        "NETMASK={netmask}\n" \
         "GATEWAY={gw}\n" \
         .format(
             ip=str(cfg["PUBLIC_SUBNET"].ip + 2),
-            prefix=str(cfg["PUBLIC_SUBNET"].prefixlen),
+            netmask=str(cfg["PUBLIC_SUBNET"].netmask),
             gw=str(cfg["PUBLIC_SUBNET"].ip + 1)
         )
     print ("\nTo fuel:\n{0}".format(rule))
