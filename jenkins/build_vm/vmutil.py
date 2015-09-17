@@ -15,7 +15,7 @@ import paramiko
 
 cfg = dict()
 
-ISO_PATH = "/home/jenkins/workspace/deploy_cluster/iso/"
+ISO_PATH = "/home/jenkins/workspace/build_test_vm/iso/"
 DEFAULT_DIST = "ubuntu"
 DEFAULT_PUB_SUBNET = "testing-network_pub"
 DEFAULT_AMD_SUBNET = "testing-network_adm"
@@ -26,7 +26,7 @@ TEST_LOGIN = "tester"
 TEST_PASSWORD = "test"
 
 iso_images = {
-    "ubuntu": ISO_PATH + "ubuntu-14.04.2-server-amd64.iso",
+    "ubuntu": ISO_PATH + "ubuntu-14.04.3-server-amd64.iso",
     "centos": ISO_PATH + "CentOS-6.6-x86_64-minimal.iso"
 }
 
