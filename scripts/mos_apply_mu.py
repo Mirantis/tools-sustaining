@@ -14,35 +14,66 @@
 # under the License.
 
 import json
+import os
+import subprocess
 import sys
 import urllib2
-import subprocess
-import os
+import yaml
 
-try:
-    from keystoneclient.v2_0 import client
-except ImportError:
-    print ("Can't find keystone-client, "
-           "this script must be only used on Fuel-node")
-    sys.exit(10)
 
 username = 'admin'
 password = 'admin'
 tenant = 'admin'
-auth = 'http://127.0.0.1:5000/v2.0'
+keystone = 'http://127.0.0.1:5000/v2.0'
+nailgun = 'http://127.0.0.1:8000/'
 logfile = 'mos_apply_mu.log'
+mos_version = None
+mos_repos_to_install = set(["updates"])
+new_fuel = ['6.1', '7.0', '8.0']
 
 env_id = 0
 all_envs = False
 try_offline = False
 really = False
 check = False
+no_rsync = False
 
 master_ip = None
 path = "custom.pkg"
 install_custom = False
 pkgs = None
 dest = "/var/www/nailgun/updates/custom/"
+
+mos_repo_template = {
+    "ubuntu": {
+        "rsync":
+            "rsync://mirror.fuel-infra.org/"
+            "mirror/mos/ubuntu/dists/mos{MOS_VERSION}-{REPO_NAME}/",
+        "local_path":
+            "/var/www/nailgun/mos-ubuntu/dists/mos{MOS_VERSION}-{REPO_NAME}/",
+        "repo_file":
+            "/etc/apt/sources.list.d/mos-{REPO_NAME}.list",
+        "repo_text":
+            "deb http://{MASTER_IP}:8080/mos-ubuntu "
+            "mos{MOS_VERSION}-{REPO_NAME} main restricted",
+        "prio": "1150"
+    },
+    "centos": {
+        "rsync":
+            "rsync://mirror.fuel-infra.org/mirror/"
+            "mos/centos-6/mos{MOS_VERSION}/{REPO_NAME}/",
+        "local_path":
+            "/var/www/nailgun/mos-centos/mos{MOS_VERSION}/{REPO_NAME}",
+        "repo_text":
+            "[mos-{REPO_NAME}]\n"
+            "name=mos-{REPO_NAME}\n"
+            "baseurl=http://{MASTER_IP}:8080/mos-centos/mos{MOS_VERSION}/"
+            "{REPO_NAME}/\ngpgcheck=0\n",
+        "repo_file":
+            "/etc/yum.repos.d/mos-{REPO_NAME}.repo",
+        "prio": "100"
+        }
+}
 
 
 def arg_parse():
@@ -58,6 +89,10 @@ def arg_parse():
     global repo_install
     global master_ip
     global check
+    global mos_version
+    global keystone
+    global nailgun
+    global no_rsync
 
     usage = """
 Tool to apply maintenance updates and custom packages into nodes.
@@ -74,8 +109,6 @@ Required arguments:
                 OR
     --check             Check status of selected nodes
 
-    --master-ip         IP-Address of Fuel-master node
-
 Optional arguments:
 
     --offline           Add to update nodes which are currently offline in fuel
@@ -88,7 +121,19 @@ Optional arguments:
                             default: admin
     --file              Name of the config file in json-format with list of
                         custom packages to download and install
+    --mos-version       Version of MOS ('old', '6.1', '7.0', etc.)
+                            default: taken from /etc/fuel/version.yaml
+    --master-ip         IP-Address of Fuel-master node
+                            default: taken from /etc/fuel/astute.yaml
 
+Fuel 6.1 and higher options:
+
+        By default only 'mos-updates' repository will
+        be installed into an environment.
+
+    --mos-proposed      Enable proposed updates repository
+    --mos-security      Enable security updates repository
+    --no-rsync          Don't download chosen repositories
 
 Examples:
 
@@ -137,14 +182,26 @@ Mirantis, 2015
             check = True
         if '--update' in cmd:
             really = True
+        if '--fuel-ip' in cmd:
+            fuel_ip = cmd.split('=')[1]
+            keystone = 'http://' + fuel_ip + ':5000/v2.0'
+            nailgun = 'http://' + fuel_ip + ':8000/'
         if '--file' in cmd:
             path = cmd.split('=')[1]
         if '--with-custom' in cmd:
             install_custom = True
         if '--master-ip' in cmd:
             master_ip = cmd.split('=')[1]
+        if '--mos-version' in cmd:
+            mos_version = cmd.split('=')[1]
+        if '--mos-proposed' in cmd:
+            mos_repos_to_install.add("proposed")
+        if '--mos-security' in cmd:
+            mos_repos_to_install.add("security")
+        if '--no-rsync' in cmd:
+            no_rsync = True
         if '--version' in cmd:
-            print ("VER_ID: 22062015")
+            print ("VER_ID: 22092015")
             sys.exit(19)
 
     if (env_id > 0) and (all_envs):
@@ -159,10 +216,47 @@ Mirantis, 2015
         print (usage)
         print ("ERROR: You should use either --check or --update. Not both.")
         sys.exit(7)
-    if master_ip is None:
+    if not really and not check:
         print (usage)
-        print ("ERROR: --master-ip is required! Set with --master-ip=X.X.X.X")
-        sys.exit(110)
+        print ("ERROR: Either --check or --update must be set.")
+        sys.exit(8)
+    if master_ip is None:
+        try:
+            master_ip = guess_master_ip()
+            print ("\tMASTER_IP: {0}".format(master_ip))
+        except:
+            print (usage)
+            print (
+                "ERROR: --master-ip is required! Set with --master-ip=X.X.X.X"
+            )
+            sys.exit(110)
+    if mos_version is None:
+        try:
+            mos_version = guess_mos_version()
+            print ("\tMOS_VERSION: {0}".format(mos_version))
+        except:
+            print ("MOS Version cannot be detected, setting to 'old'")
+            mos_version = 'old'
+
+
+def guess_mos_version():
+    try:
+        with open('/etc/fuel/version.yaml', 'r') as fp:
+            ver = yaml.load(fp)['VERSION']['release']
+            if ver not in new_fuel:
+                return 'old'
+            return ver
+    except:
+        raise
+
+
+def guess_master_ip():
+    try:
+        with open('/etc/fuel/astute.yaml', 'r') as fp:
+            return yaml.load(fp)['ADMIN_NETWORK']['ipaddress']
+    except:
+        raise
+
 
 def get_downloads_list():
     global pkgs
@@ -176,7 +270,7 @@ def get_downloads_list():
 
 
 def packages_download():
-    #check if dst dir exists if not create it (and others)
+    # check if dst dir exists if not create it (and others)
     try:
         os.makedirs(dest)
     except os.error as err:
@@ -198,7 +292,7 @@ def packages_download():
 
 
 def get_nodes():
-    req = urllib2.Request('http://127.0.0.1:8000/api/v1/nodes/')
+    req = urllib2.Request(nailgun + '/api/v1/nodes/')
     req.add_header('X-Auth-Token', token)
     nodes = json.load(urllib2.urlopen(req))
     return nodes
@@ -275,7 +369,7 @@ def get_md5_from_file(file):
 
 def send_shell_script(ip, os_version):
     """ This function generates a shell-script and sends it to the node.
-        Then the script will be run in hohup."""
+        Then the script will be run in nohup."""
 
     repo_install = {
         'ubuntu':   "(grep -q \"updates\" /etc/apt/sources.list "
@@ -290,6 +384,45 @@ def send_shell_script(ip, os_version):
                     "centos/os/x86_64/\nyum update --skip-broken -y "
                     "--nogpgcheck\n".format(master_ip)
     }
+
+    pkg_mgr_string = {
+        'ubuntu':   'apt-get {repos} -o Dir::Etc::sourceparts="-"'
+                    ' -o APT::Get::List-Cleanup="0" update\n'
+                    'apt-get {repos} -o Dir::Etc::sourceparts="-"'
+                    ' -o APT::Get::List-Cleanup="0"'
+                    ' -o Dpkg::Options::="--force-confdef"'
+                    ' -o Dpkg::Options::="--force-confold" -y upgrade\n',
+        'centos':   'yum --disablerepo="*" {repos} update'
+                    ' --skip-broken -y --nogpgcheck\n'
+    }
+
+    if mos_version != 'old':
+        repo_string = ""
+        tmpl = ''
+        for repo in mos_repos_to_install:
+            if os_version == "ubuntu":
+                repo_string += ' -o Dir::Etc::sourcelist="{repo_file}"'.format(
+                    repo_file=mos_repo_template[os_version]['repo_file'].format(
+                        REPO_NAME=repo))
+            else:
+                repo_string += ' --enablerepo="mos-{repo_name}"'.format(
+                    repo_name=repo)
+
+            tmpl += 'echo "{repo_text}" > {repo_file};\n'.format(
+                repo_text=mos_repo_template[os_version]['repo_text'].format(
+                    MASTER_IP=master_ip,
+                    MOS_VERSION=mos_version,
+                    REPO_NAME=repo
+                ),
+                repo_file=mos_repo_template[os_version]['repo_file'].format(
+                        REPO_NAME=repo
+                )
+            )
+        tmpl += pkg_mgr_string[os_version].format(repos=repo_string)
+
+        repo_install = {
+            os_version: tmpl
+        }
 
     pkg_install_tool = {
         'ubuntu': '/usr/bin/dpkg -iE',
@@ -417,7 +550,7 @@ echo "REPO_UPD=$REPO_STATE;CUSTOM=$SUCCESS_COUNT of $TOTAL_COUNT INSTALLED" >> $
             "cat - > /root/mos_update.sh ; chmod +x /root/mos_update.sh; "
             "(nohup /root/mos_update.sh > /dev/null 2>&1) &"
         ]
-        with open(os.devnull,'w') as DNULL:
+        with open(os.devnull, 'w') as DNULL:
             proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE,
                                     stderr=DNULL)
@@ -431,16 +564,78 @@ echo "REPO_UPD=$REPO_STATE;CUSTOM=$SUCCESS_COUNT of $TOTAL_COUNT INSTALLED" >> $
     else:
         return True
 
+
+def keystone_get_token():
+    try:
+        jrequest = """
+        {{
+            "auth": {{
+                "tenantName": "{tenant}",
+                "passwordCredentials": {{
+                    "username": "{username}",
+                    "password": "{password}"
+                }}
+            }}
+        }}
+        """.format(
+            tenant=tenant,
+            username=username,
+            password=password
+        )
+        req = urllib2.Request(keystone + '/tokens/')
+        req.add_header('Content-Type', 'application/json')
+        req.add_data(jrequest)
+        out = json.load(urllib2.urlopen(req))
+        return out['access']['token']['id']
+    except:
+        return None
+
+
+def rsync_repos():
+    if not really or no_rsync:
+        print ("Download of repository is skipped")
+        return None
+    # work around the mos-ubuntu repos
+    # that have no individual pools
+    try:
+        os.makedirs("/var/www/nailgun/mos-ubuntu/pool")
+    except:
+        pass
+    cmdline = "rsync -vap --chmod=Dugo+x "\
+              "rsync://mirror.fuel-infra.org/mirror/mos/ubuntu/pool/ "\
+              "/var/www/nailgun/mos-ubuntu/pool/;"
+    for distro in ['ubuntu', 'centos']:
+        for repo in mos_repos_to_install:
+            try:
+                os.makedirs(mos_repo_template[distro]['local_path'].format(
+                        MOS_VERSION=mos_version,
+                        REPO_NAME=repo
+                    )
+                )
+            except:
+                pass
+            cmdline += 'rsync -vap --chmod=Dugo+x {url} {folder};'.format(
+                url=mos_repo_template[distro]['rsync'].format(
+                    MOS_VERSION=mos_version,
+                    REPO_NAME=repo
+                ),
+                folder=mos_repo_template[distro]['local_path'].format(
+                    MOS_VERSION=mos_version,
+                    REPO_NAME=repo
+                )
+            )
+    print (cmdline)
+    retval = os.system(cmdline)
+    if retval != 0:
+        print ("Error during rsync!")
+        sys.exit(21)
+
+
 if __name__ == "__main__":
+
     arg_parse()
 
-    ks = client.Client(
-        username=username,
-        password=password,
-        tenant_name=tenant,
-        auth_url=auth
-    )
-    token = ks.auth_token
+    token = keystone_get_token()
 
     env_list = set()
     nodes = get_nodes()
@@ -449,7 +644,13 @@ if __name__ == "__main__":
         env_list.add(env_id)
     else:
         get_operational_envs(nodes, env_list)
-
-    print ("Environments to update: " + ",".join([str(x) for x in env_list]))
-    do_node_update(nodes, env_list)
+    if mos_version == 'old':
+        print ("Environments to update: " + ",".join(
+            [str(x) for x in env_list]))
+        do_node_update(nodes, env_list)
+    else:
+        rsync_repos()
+        print ("Selected repositories: {0}".format(
+            ",".join(mos_repos_to_install)))
+        do_node_update(nodes, env_list)
     sys.exit(0)
