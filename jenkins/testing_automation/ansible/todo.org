@@ -1,0 +1,7 @@
+* DONE provide playbook for deployment
+CLOSED: [2015-09-30 Ср 19:57]
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2015-09-30 Ср 19:57]
+:END:
+* TODO leverage https://wiki.jenkins-ci.org/display/JENKINS/Ansible+Plugin usage
+* TODO add cleanup steps before actual workload for all jobs

@@ -1,0 +1,117 @@
+- hosts: localhost
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: set attrs for vm template xml files
+      file: path={{ playbook_dir }}/contrib/{{ template_name }}.xml owner=jenkins group=jenkins
+      sudo: yes
+
+    - name: clone vm
+      shell: "virt-clone --connect {{ qemu_uri }} --original-xml {{ playbook_dir }}/contrib/{{ template_name }}.xml --name {{ vm_name }} --file {{ libvirt_images_path }}{{ vm_name }}.img"
+
+    - name: attach admin network
+      shell: virsh attach-interface {{ vm_name }} network {{ env_name }}_adm --persistent
+
+    - name: attach admin network | start vm
+      shell: virsh start {{ vm_name }}
+
+    - name: get pubnet MAC info
+      shell: >
+        virsh domiflist {{ vm_name }} | grep testing-network_pub | awk '{print $5}'
+      changed_when: no
+      register: pub_mac
+
+    - name: get cloned vm IP
+      shell: |
+        until arp -an | grep -q -F {{ pub_mac.stdout }}; do
+          sleep 2
+        done
+        arp -an | grep -F {{ pub_mac.stdout }} | cut -f 2 -d "(" | cut -f 1 -d ")"
+      changed_when: no
+      register: pub_ip
+
+    - name: add newly cloned vm as host
+      add_host: name={{ pub_ip.stdout_lines[0] }} groups=new_test_vms ansible_ssh_user=tester ansible_ssh_pass=test
+
+    - name: wait for ssh server up and running
+      pause: seconds=10
+
+
+- hosts: new_test_vms
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: preinstall packages
+      apt: name={{ item }} state=present
+      with_items:
+        - vlan
+        - git
+        - build-essential
+        - libssl-dev
+        - libffi-dev
+        - python-dev
+        - libxml2-dev
+        - libxslt1-dev
+        - libpq-dev
+        - python-pip
+      sudo: yes
+
+    - name: setup admin network | vconfig
+      shell: vconfig add eth1 101
+      sudo: yes
+
+    - name: setup admin network | up
+      shell: ifconfig eth1 up
+      sudo: yes
+
+    - name: setup admin network | routing
+      shell: ifconfig eth1.101 inet 192.168.0.254/24 up
+      sudo: yes
+
+    - name: prepare Rally | git clone
+      git: repo=https://github.com/openstack/rally dest=rally-dist
+
+    - name: prepare Rally | install
+      shell: ~/rally-dist/install_rally.sh
+
+    - name: upload contrib files
+      copy: src={{ item }} dest=/home/tester # TODO parameterize
+      with_items:
+        - contrib/instance_dd_test.sh
+        - contrib/openrc
+        - contrib/rally-mos.yaml
+
+    - name: Rally | create deployment
+      shell: . ~/rally/bin/activate && rally-manage db recreate && . ~/openrc admin admin && rally deployment create --fromenv --name=deployment_{{ env_name }}
+      args:
+        executable: /bin/bash
+
+    - name: Rally | perform task
+      shell: . ~/rally/bin/activate && . ~/.rally/openrc admin admin && rally task start ~/rally-mos.yaml
+      args:
+        executable: /bin/bash
+
+    - name: Rally | generate report
+      shell: . ~/rally/bin/activate && . ~/.rally/openrc admin admin && rally task report --out {{ report_filename }}
+      args:
+        executable: /bin/bash
+
+    - name: download Rally report
+      fetch: fail_on_missing=yes src=/home/tester/{{ report_filename }} dest={{ rally_report_path }} flat=yes
+
+
+- hosts: localhost
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: Remove current testing VM from known_hosts, otherwise all gets stuck on next run with the same VM IP
+      known_hosts:
+        path={{ home_dir }}/.ssh/known_hosts
+        name={{ pub_ip.stdout_lines[0] }}
+        state=absent

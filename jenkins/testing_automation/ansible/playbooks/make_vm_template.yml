@@ -1,0 +1,75 @@
+- hosts: localhost
+
+  vars:
+    sysprep_ops_enabled:
+      - abrt-data
+      - bash-history
+      - blkid-tab
+      - crash-data
+      - cron-spool
+      - dhcp-client-state
+      - dhcp-server-state
+      - dovecot-data
+      - logfiles
+      - machine-id
+      - mail-spool
+      - net-hostname
+      - net-hwaddr
+      - pacct-log
+      - package-manager-cache
+      - pam-data
+      - puppet-data-log
+      - rh-subscription-manager
+      - rhn-systemid
+      - rpm-db
+      - samba-db-log
+      - script
+      - smolt-uuid
+      - ssh-userdir
+      - sssd-db-log
+      - tmp-files
+      - udev-persistent-net
+      - utmp
+      - yum-uuid
+      - customize
+      - lvm-uuids
+    cleanup_source: false
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: shutdown source vm
+      virt: command=shutdown name={{ source_vm }}
+
+    - name: dump source vm as xml
+      shell: virsh dumpxml {{ source_vm }} > {{ vm_template_xml_path }}{{ template_name }}.xml
+
+    - name: prepare xml file, step 1
+      shell: sed -i "s/{{ source_vm }}.img/{{ template_name }}.img/g" {{ vm_template_xml_path }}{{ template_name }}.xml
+
+    - name: prepare xml file, step 2
+      shell: sed -i "s/boot dev='hd'/boot dev='cdrom'/g" {{ vm_template_xml_path }}{{ template_name }}.xml
+
+    - name: prepare xml file, step 3
+      shell: sed -i "0,/cdrom/s/boot dev='cdrom'/boot dev='hd'/" {{ vm_template_xml_path }}{{ template_name }}.xml
+
+    - name: copy disk image for template
+      shell: cp {{ libvirt_images_path }}{{ source_vm }}.img {{ libvirt_images_path }}{{ template_name }}.img
+      sudo: yes
+
+    - name: prepare template disk image
+      shell: virt-sysprep --operations {{ sysprep_ops_enabled | join(",") }} -a {{ libvirt_images_path }}{{ template_name }}.img
+      sudo: yes
+
+    - name: destroy source vm
+      virt: command=destroy name={{ source_vm }}
+      when: cleanup_source == true
+
+    - name: undefine source vm
+      virt: command=undefine name={{ source_vm }}
+      when: cleanup_source == true
+
+    - name: remove source disk image
+      shell: virsh vol-delete --pool default {{ source_vm }}.img
+      when: cleanup_source == true

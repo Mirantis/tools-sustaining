@@ -1,0 +1,12 @@
+- hosts: localhost
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: patch ssh config to turn off known_hosts hashing
+      lineinfile:
+        dest=/etc/ssh/ssh_config
+        regexp="HashKnownHosts"
+        line="    HashKnownHosts no"
+      sudo: yes

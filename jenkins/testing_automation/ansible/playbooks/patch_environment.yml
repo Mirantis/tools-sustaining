@@ -1,0 +1,42 @@
+- hosts: localhost
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: add newly cloned vm as host
+      add_host: name={{ master_node_ip }} groups=master_nodes ansible_ssh_user=root ansible_ssh_pass=r00tme #TODO parameterize
+
+
+- hosts: master_nodes
+
+  tasks:
+    - name: preinstall packages
+      yum: name={{ item }} state=present
+      with_items:
+        - wget
+        - curl
+        - rsync
+      sudo: yes
+
+    - name: sync Nailgun updates
+      shell: "rsync -vap --chmod=Dugo+x rsync://fuel-repository.mirantis.com/mirror/fwm/{{ mos_version }}/updates/ /var/www/nailgun/updates/"
+
+    - name: download update script
+      shell: "wget https://github.com/Mirantis/tools-sustaining/raw/master/scripts/mos_apply_mu.py"
+
+    - name: execute update script
+      shell: "python mos_apply_mu.py --update --all-envs --master-ip={{ master_node_ip }}"
+
+    - name: wait for node updates to complete
+      pause: minutes=3          # TODO custom task for recurrent check
+
+    - name: check update status
+      shell: "python mos_apply_mu.py --check --all-envs --master-ip={{ master_node_ip }}"
+
+
+- hosts: localhost
+
+  tasks:
+    - name: zip Tempest report files set
+      shell: tar cvvf tempest-report.tar ./tempest-report

@@ -1,0 +1,68 @@
+- hosts: localhost
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: add newly cloned vm as host
+      add_host: name={{ master_node_ip }} groups=master_nodes ansible_ssh_user=root ansible_ssh_pass=r00tme #TODO parameterize
+
+
+- hosts: master_nodes
+
+  tasks:
+    - name: preinstall packages
+      yum: name={{ item }} state=present
+      with_items:
+        - git
+        - mc
+        - htop
+        - tmux
+      sudo: yes
+
+    - name: prepare Tempest runner | git clone
+      git: repo=https://github.com/Mirantis/mos-tempest-runner.git dest=mos-tempest-runner force=yes
+
+    - name: patch mos-tempest runner to create testing status file
+      lineinfile:
+        dest=/root/mos-tempest-runner/tempest/run_tests.sh
+        insertbefore="^    return_exit_code"
+        line="    touch /home/developer/tempest-finished"
+
+    - name: prepare Tempest runner | setup
+      shell: cd ~/mos-tempest-runner && ./setup_env.sh
+
+    - name: upload tmux script
+      copy: src=contrib/tempest-tmux dest=/root
+
+    - name: set modes on tmux script
+      file: path=/root/tempest-tmux mode="a+rx"
+
+    - name: run Tempest tests within tmux session
+      shell: /root/tempest-tmux
+
+    # FIXME: parameterize
+    - name: wait for Tempest tests set to complete
+      wait_for:
+        path=/home/developer/tempest-finished
+        state=present
+        delay=7000
+        timeout={{ tempest_timeout }}
+
+    - name: remove Tempest state file
+      file: path=/home/developer/tempest-finished state=absent
+
+    - name: download Tempest report files
+      fetch: fail_on_missing=yes src=/home/developer/mos-tempest-runner/tempest-reports/{{ item }} dest=./tempest-report/ flat=yes
+      with_items:
+        - tempest-report.xml
+        - tempest.conf
+        - tempest-report.html
+        - shouldfail.yaml
+
+
+- hosts: localhost
+
+  tasks:
+    - name: zip Tempest report files set
+      shell: tar cvvf tempest-report.tar ./tempest-report

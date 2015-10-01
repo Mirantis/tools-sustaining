@@ -1,0 +1,19 @@
+- hosts: localhost
+
+  tasks:
+
+    - include_vars: common_vars.yml
+
+    - name: destroy pubnet
+      shell: virsh net-destroy {{ default_pub_subnet }}
+      ignore_errors: True
+
+    - name: undefine pubnet
+      shell: virsh net-undefine {{ default_pub_subnet }}
+      ignore_errors: True
+
+    - name: define pubnet
+      shell: virsh net-define --file contrib/{{ default_pub_subnet }}.xml
+
+    - name: start pubnet
+      shell: virsh net-start {{ default_pub_subnet }}

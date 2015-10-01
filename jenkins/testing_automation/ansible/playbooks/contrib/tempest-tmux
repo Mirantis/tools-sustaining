@@ -1,0 +1,6 @@
+#!/bin/sh
+
+tmux new-session -d
+tmux send-keys -t 0 'cd mos-tempest-runner' enter
+tmux send-keys -t 0 './rejoin.sh' enter
+tmux send-keys -t 0 'run_tests' enter

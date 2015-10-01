@@ -1,0 +1,5 @@
+new_vol_size: 50
+memory: 8192 # ram_amount * 1024
+vcpu: 4
+first_boot: cdrom
+second_boot: hd

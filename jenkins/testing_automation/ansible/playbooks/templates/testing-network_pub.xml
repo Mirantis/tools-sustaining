@@ -1,0 +1,9 @@
+<network>
+  <name>testing-network_pub</name>
+  <forward mode='route'/>
+  <ip address='172.16.59.241' prefix='28'>
+    <dhcp>
+      <range start="172.16.59.242" end="172.16.59.254" />
+    </dhcp>
+  </ip>
+</network>

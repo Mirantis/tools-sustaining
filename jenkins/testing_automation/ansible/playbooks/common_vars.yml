@@ -1,0 +1,16 @@
+home_dir: /home/jenkins
+vm_template_xml_path: "{{ home_dir }}/workspace/templates"
+libvirt_images_path: /var/lib/libvirt/images/
+qemu_uri: qemu:///system
+storage_pool: default
+iso_path: "{{ home_dir }}/workspace/iso/"
+default_dist: ubuntu
+default_pub_subnet: testing-network_pub
+vm_template_name: template
+test_login: tester
+test_password: test
+ubuntu_iso: ubuntu-14.04.3-server-amd64.iso
+centos_iso: CentOS-6.6-x86_64-minimal.iso
+host_key_checking: False
+report_filename: rally_report.html
+rally_report_path: "{{ home_dir }}/workspace/rally/"

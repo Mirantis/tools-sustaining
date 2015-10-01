@@ -1,0 +1,64 @@
+- hosts: jenkins
+
+  vars:
+    jenkins_user: jenkins
+    jobs_dir: /home/{{ jenkins_user }}/workspace
+    rally_job_name: rally
+    tempest_job_name: tempest
+    patching_job_name: patch_environment
+
+  tasks:
+
+    - name: Rally | upload inventory
+      copy: src=inventory.ini dest={{ jobs_dir }}/{{ rally_job_name }}
+
+    - name: Rally | upload playbooks
+      copy: src=playbooks/{{ item }} dest={{ jobs_dir }}/{{ rally_job_name }}
+      with_items:
+        - cleanup_test_vm.yml
+        - common_vars.yml
+        - perform_rally.yml
+        - recreate_pubnet.yml
+        - fix_ssh_config.yml
+
+    - name: Rally | mkdir contrib
+      file: path={{ jobs_dir }}/{{ rally_job_name }}/contrib state=directory
+
+    - name: Rally | upload contrib
+      copy: src=playbooks/contrib/{{ item }} dest={{ jobs_dir }}/{{ rally_job_name }}/contrib
+      with_items:
+        - instance_dd_test.sh
+        - openrc
+        - rally-mos.yaml
+        - template_centos.xml
+        - template_ubuntu.xml
+        - testing-network_pub.xml
+
+    - name: Tempest | upload inventory
+      copy: src=inventory.ini dest={{ jobs_dir }}/{{ tempest_job_name }}
+
+    - name: Tempest | upload playbooks
+      copy: src=playbooks/{{ item }} dest={{ jobs_dir }}/{{ tempest_job_name }}
+      with_items:
+        - common_vars.yml
+        - perform_tempest.yml
+        - recreate_pubnet.yml
+        - fix_ssh_config.yml
+        - cleanup_knownhosts.yml
+
+    - name: Tempest | mkdir contrib
+      file: path={{ jobs_dir }}/{{ tempest_job_name }}/contrib state=directory
+
+    - name: Tempest | upload contrib
+      copy: src=playbooks/contrib/{{ item }} dest={{ jobs_dir }}/{{ tempest_job_name }}/contrib
+      with_items:
+        - tempest-tmux
+
+    - name: Patching | upload inventory
+      copy: src=inventory.ini dest={{ jobs_dir }}/{{ patching_job_name }}
+
+    - name: Patching | upload playbooks
+      copy: src=playbooks/{{ item }} dest={{ jobs_dir }}/{{ patching_job_name }}
+      with_items:
+        - common_vars.yml
+        - patch_environment.yml

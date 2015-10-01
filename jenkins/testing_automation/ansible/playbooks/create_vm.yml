@@ -1,0 +1,34 @@
+- hosts: localhost
+
+  vars:
+    new_volume_xml_filename: new_volume.xml
+
+  tasks:
+
+    - include_vars: common_vars.yml
+    - include_vars: vm_defaults_vars.yml
+
+    - name: prepare file with disk image definition
+      template: src=templates/volume_template.xml dest=./{{ new_volume_xml_filename }}
+
+    - name: create new disk image
+      shell: virsh vol-create --pool {{ storage_pool }} {{ new_volume_xml_filename }}
+
+    - name: cleanup file with disk image definition
+      file: path=./{{ new_volume_xml_filename }} state=absent
+
+    - name: create new vm
+      virt: name={{ new_vm_name }}
+            command=define
+            xml="{{ lookup('template', 'templates/vm_template.xml') }}"
+            uri={{ qemu_uri }}
+
+    - name: start newly created vm
+      virt: command=start name={{ new_vm_name }}
+
+    - name: get vnc console address
+      shell: virsh domdisplay {{ new_vm_name }}
+      register: vnc_uri
+
+    - name: print vnc console address
+      debug: msg={{ vnc_uri.stdout }}

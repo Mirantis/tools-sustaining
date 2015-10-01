@@ -1,0 +1,17 @@
+- hosts: localhost
+
+  tasks:
+
+      - include_vars: common_vars.yml
+
+      - name: destroy vm
+        virt: command=destroy name={{ vm_to_destroy }}
+        ignore_errors: True
+
+      - name: undefine vm
+        virt: command=undefine name={{ vm_to_destroy }}
+        ignore_errors: True
+
+      - name: remove disk image
+        shell: virsh vol-delete --pool {{ storage_pool }} {{ vm_to_destroy }}.img
+        ignore_errors: True

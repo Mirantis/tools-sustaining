@@ -1,0 +1,8 @@
+<volume type='file'>
+  <name>{{ new_vm_name }}.img</name>
+  <allocation>0</allocation>
+  <capacity unit='G'>{{ new_vol_size }}</capacity>
+  <target>
+    <format type='qcow2'/>
+  </target>
+</volume>

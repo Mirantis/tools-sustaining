@@ -1,0 +1,14 @@
+#!/bin/sh
+export LC_ALL=C
+export OS_NO_CACHE='true'
+export OS_TENANT_NAME='admin'
+export OS_USERNAME='admin'
+export OS_PASSWORD='admin'
+export OS_AUTH_URL='http://192.168.0.2:5000/v2.0/'
+export OS_AUTH_STRATEGY='keystone'
+export OS_REGION_NAME='RegionOne'
+export CINDER_ENDPOINT_TYPE='publicURL'
+export GLANCE_ENDPOINT_TYPE='publicURL'
+export KEYSTONE_ENDPOINT_TYPE='publicURL'
+export NOVA_ENDPOINT_TYPE='publicURL'
+export NEUTRON_ENDPOINT_TYPE='publicURL'
