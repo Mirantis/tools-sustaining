@@ -37,6 +37,7 @@ try_offline = False
 really = False
 check = False
 no_rsync = False
+use_latest = False
 
 master_ip = None
 path = "custom.pkg"
@@ -75,6 +76,34 @@ mos_repo_template = {
         }
 }
 
+latest_mos_repo_template = {
+    "ubuntu": {
+        "rsync": "rsync://mirror.fuel-infra.org/mirror/mos/snapshots/"
+                 "ubuntu-latest/dists/mos{MOS_VERSION}-{REPO_NAME}/",
+        "local_path": "/var/www/nailgun/mos-ubuntu/dists/"
+                      "latest-mos{MOS_VERSION}-{REPO_NAME}/",
+        "repo_file": "/etc/apt/sources.list.d/latest-mos-{REPO_NAME}.list",
+        "repo_text": "deb http://{MASTER_IP}:8080/mos-ubuntu latest"
+                     "-mos{MOS_VERSION}-{REPO_NAME} main restricted",
+        "prio": "1150"
+    },
+    "centos": {
+        "rsync":
+            "rsync://mirror.fuel-infra.org/mirror/mos/snapshots/"
+            "centos-6-latest/mos{MOS_VERSION}/{REPO_NAME}/",
+        "local_path":
+            "/var/www/nailgun/mos-centos/mos{MOS_VERSION}/latest-{REPO_NAME}",
+        "repo_text":
+            "[latest-mos-{REPO_NAME}]\n"
+            "name=latest-mos-{REPO_NAME}\n"
+            "baseurl=http://{MASTER_IP}:8080/mos-centos/"
+            "mos{MOS_VERSION}/latest-{REPO_NAME}/\ngpgcheck=0\n",
+        "repo_file":
+            "/etc/yum.repos.d/latest-mos-{REPO_NAME}.repo",
+        "prio": "100"
+        }
+}
+
 
 def arg_parse():
     global env_id
@@ -92,6 +121,7 @@ def arg_parse():
     global mos_version
     global keystone
     global nailgun
+    global use_latest
     global no_rsync
 
     usage = """
@@ -198,6 +228,8 @@ Mirantis, 2015
             mos_repos_to_install.add("proposed")
         if '--mos-security' in cmd:
             mos_repos_to_install.add("security")
+        if '--use-latest' in cmd:
+            use_latest = True
         if '--no-rsync' in cmd:
             no_rsync = True
         if '--version' in cmd:
@@ -418,6 +450,26 @@ def send_shell_script(ip, os_version):
                         REPO_NAME=repo
                 )
             )
+        if use_latest:
+            for repo in mos_repos_to_install:
+                if os_version == "ubuntu":
+                    repo_string += ' -o Dir::Etc::sourcelist="{repo_file}"'.format(
+                        repo_file=latest_mos_repo_template[os_version]['repo_file'].format(
+                            REPO_NAME=repo))
+                else:
+                    repo_string += ' --enablerepo="latest-mos-{repo_name}"'.format(
+                        repo_name=repo)
+
+                tmpl += 'echo "{repo_text}" > {repo_file};\n'.format(
+                    repo_text=latest_mos_repo_template[os_version]['repo_text'].format(
+                        MASTER_IP=master_ip,
+                        MOS_VERSION=mos_version,
+                        REPO_NAME=repo
+                    ),
+                    repo_file=latest_mos_repo_template[os_version]['repo_file'].format(
+                            REPO_NAME=repo
+                    )
+                )
         tmpl += pkg_mgr_string[os_version].format(repos=repo_string)
 
         repo_install = {
@@ -604,10 +656,20 @@ def rsync_repos():
     cmdline = "rsync -vap --chmod=Dugo+x "\
               "rsync://mirror.fuel-infra.org/mirror/mos/ubuntu/pool/ "\
               "/var/www/nailgun/mos-ubuntu/pool/;"
+    if use_latest:
+        cmdline += "rsync -vap --chmod=Dugo+x "\
+              "rsync://mirror.fuel-infra.org/mirror/mos/snapshots/ubuntu-latest/pool/ "\
+              "/var/www/nailgun/mos-ubuntu/pool/;"
     for distro in ['ubuntu', 'centos']:
         for repo in mos_repos_to_install:
             try:
                 os.makedirs(mos_repo_template[distro]['local_path'].format(
+                        MOS_VERSION=mos_version,
+                        REPO_NAME=repo
+                    )
+                )
+                if use_latest:
+                    os.makedirs(latest_mos_repo_template[distro]['local_path'].format(
                         MOS_VERSION=mos_version,
                         REPO_NAME=repo
                     )
@@ -620,6 +682,17 @@ def rsync_repos():
                     REPO_NAME=repo
                 ),
                 folder=mos_repo_template[distro]['local_path'].format(
+                    MOS_VERSION=mos_version,
+                    REPO_NAME=repo
+                )
+            )
+            if use_latest:
+                cmdline += 'rsync -vap --chmod=Dugo+x {url} {folder};'.format(
+                url=latest_mos_repo_template[distro]['rsync'].format(
+                    MOS_VERSION=mos_version,
+                    REPO_NAME=repo
+                ),
+                folder=latest_mos_repo_template[distro]['local_path'].format(
                     MOS_VERSION=mos_version,
                     REPO_NAME=repo
                 )
