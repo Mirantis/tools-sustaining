@@ -66,12 +66,15 @@ class Config(object):
             "master_ip": None,
             "repo_install_text": 'echo "{REPO_TEXT}" > {REPO_FILE};\n',
             "repo_use_text": {
-                'ubuntu':   'apt-get -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
+                'ubuntu':   'apt-get -o Dir::etc::sourcelist="-"'
+                            ' -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
                             ' -o APT::Get::List-Cleanup="0" update\n'
-                            'apt-get -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
+                            'apt-get -o Dir::etc::sourcelist="-"'
+                            ' -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
                             ' -o APT::Get::List-Cleanup="0"'
                             ' -o Dpkg::Options::="--force-confdef"'
-                            ' -o Dpkg::Options::="--force-confold" -y upgrade\n',
+                            ' -o Dpkg::Options::="--force-confold" -y'
+                            ' --force-yes upgrade\n',
                 'centos':   'yum --disablerepo="*" {REPOS_ACTIVATE} update'
                             ' --skip-broken -y --nogpgcheck\n'
             },
@@ -569,12 +572,15 @@ class Updater511(BasicUpdater):
             }
         }
         self.cfg["repo_use_text"] = {
-                'ubuntu':   'apt-get -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
+                'ubuntu':   'apt-get -o Dir::etc::sourcelist="-"'
+                            ' -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
                             ' -o APT::Get::List-Cleanup="0" update\n'
-                            'apt-get -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
+                            'apt-get -o Dir::etc::sourcelist="-"'
+                            ' -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
                             ' -o APT::Get::List-Cleanup="0"'
                             ' -o Dpkg::Options::="--force-confdef"'
-                            ' -o Dpkg::Options::="--force-confold" -y dist-upgrade\n',
+                            ' -o Dpkg::Options::="--force-confold" -y'
+                            ' --force-yes dist-upgrade\n',
                 'centos':   'yum --disablerepo="*" {REPOS_ACTIVATE} update'
                             ' --skip-broken -y --nogpgcheck\n'
         }
