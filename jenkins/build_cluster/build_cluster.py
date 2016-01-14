@@ -475,7 +475,7 @@ def inject_ifconfig_ssh():
 
     retries = 0
     while True:
-        if retries > 10:
+        if retries > 25:
             return False
 
         proc = subprocess.Popen(
@@ -513,7 +513,7 @@ def wait_for_api_is_ready():
            "/usr/bin/fuel env"]
 
     retries = 0
-    while retries < 20:
+    while retries < 50:
         proc = subprocess.Popen(cmd, stdin=None, stdout=None, stderr=None)
         proc.wait()
         if proc.returncode == 0:
@@ -719,13 +719,13 @@ def main():
 
     start_slaves()
 
-    print_summary()
-
     wait_for_api_is_ready()
 
     configure_nailgun()
 
     wait_for_cluster_is_ready()
+
+    print_summary()
 
     db.close()
     vconn.close()
