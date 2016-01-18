@@ -293,7 +293,7 @@ def start_node(name, admin=False):
   <currentMemory unit='KiB'>{memory}</currentMemory>
   <vcpu placement='static'>{vcpu}</vcpu>
   <os>
-    <type arch='x86_64' machine='pc-i440fx-trusty'>hvm</type>
+    <type arch='x86_64' machine='pc'>hvm</type>
     <boot dev='{first_boot}'/>
     <boot dev='{second_boot}'/>
     <bios rebootTimeout='5000'/>
