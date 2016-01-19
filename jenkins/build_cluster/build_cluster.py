@@ -450,10 +450,12 @@ def inject_ifconfig_ssh():
         "IPADDR={ip}\n" \
         "NETMASK={netmask}\n" \
         "GATEWAY={gw}\n" \
+        "DNS1={dns}\n" \
         .format(
             ip=str(cfg["PUBLIC_SUBNET"].ip + 2),
             netmask=str(cfg["PUBLIC_SUBNET"].netmask),
-            gw=str(cfg["PUBLIC_SUBNET"].ip + 1)
+            gw=str(cfg["PUBLIC_SUBNET"].ip + 1),
+            dns=str(cfg["ADMIN_SUBNET"].ip + 1)
         )
     print ("\nTo fuel:\n{0}".format(rule))
     ifcfg = "/etc/sysconfig/network-scripts/ifcfg-eth1"
