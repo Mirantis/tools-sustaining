@@ -383,8 +383,8 @@ def start_node(name, admin=False):
 
         vcpu = cfg["SLAVE_CPU"]
         memory = cfg["SLAVE_RAM"] * 1024
-        first_boot = "hd"
-        second_boot = "network"
+        first_boot = "network"
+        second_boot = "hd"
         iso = ""
 
     admin_net = cfg["ADM_SUBNET_OBJ"].name()

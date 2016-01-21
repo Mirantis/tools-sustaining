@@ -1,19 +1,19 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <project>
   <actions/>
-  <description></description>
+  <description>When choosing parameters please remember that srv## slaves have 32G of RAM and 12 CPUs, while cz7377 has 256G RAM and 12 CPUs.</description>
   <keepDependencies>false</keepDependencies>
   <properties>
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
-          <name>NAME</name>
-          <description>Required!</description>
+          <name>PERSONAL_TAG</name>
+          <description>Tag is used in name of build.</description>
           <defaultValue></defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>ISO_URL</name>
-          <description>Required! Can be direct URL or URL to torrent-file. Public ISOs are available here - http://srv08-srt.srt.mirantis.net/fuelweb/</description>
+          <description>Required! Can be direct URL or URL to torrent-file. Public ISOs are available here - &lt;b&gt;http://vault.infra.mirantis.net/&lt;/b&gt;</description>
           <defaultValue></defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
@@ -23,36 +23,33 @@
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>ADMIN_RAM</name>
-          <description></description>
+          <description>It&apos; recommended to set it to 4096 at least.</description>
           <defaultValue>4096</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>ADMIN_CPU</name>
-          <description></description>
-          <defaultValue>2</defaultValue>
+          <description>For srv03#-scc slaves you can use 4 CPUs.</description>
+          <defaultValue>1</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>SLAVE_RAM</name>
-          <description></description>
-          <defaultValue>2048</defaultValue>
+          <description>It&apos; recommended to set it to 4096 at least.</description>
+          <defaultValue>4096</defaultValue>
         </hudson.model.StringParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>SLAVE_CPU</name>
-          <description></description>
+          <description>For srv03#-scc slaves you can use 4 CPUs.</description>
           <defaultValue>1</defaultValue>
         </hudson.model.StringParameterDefinition>
-        <org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition plugin="nodelabelparameter@1.5.1">
-          <name>Label of slave</name>
-          <description>Here you can choose on which slave to run job</description>
-          <defaultValue>MAIN</defaultValue>
-          <allNodesMatchingLabel>false</allNodesMatchingLabel>
-          <triggerIfResult>allCases</triggerIfResult>
-          <nodeEligibility class="org.jvnet.jenkins.plugins.nodelabelparameter.node.AllNodeEligibility"/>
-        </org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>NODES_DISK_SIZE</name>
+          <description>Size of virtual disk for slaves. 50GB by default.</description>
+          <defaultValue>100</defaultValue>
+        </hudson.model.StringParameterDefinition>
         <hudson.model.BooleanParameterDefinition>
           <name>PREPARE_CLUSTER</name>
           <description>Check it to predefine cluster config</description>
-          <defaultValue>false</defaultValue>
+          <defaultValue>true</defaultValue>
         </hudson.model.BooleanParameterDefinition>
         <hudson.model.ChoiceParameterDefinition>
           <name>NETWORK_TYPE</name>
@@ -70,8 +67,8 @@
           <description>Choose base for deployment</description>
           <choices class="java.util.Arrays$ArrayList">
             <a class="string-array">
-              <string>CentOS</string>
               <string>Ubuntu</string>
+              <string>CentOS</string>
             </a>
           </choices>
         </hudson.model.ChoiceParameterDefinition>
@@ -85,11 +82,24 @@
             </a>
           </choices>
         </hudson.model.ChoiceParameterDefinition>
+        <org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition plugin="nodelabelparameter@1.5.1">
+          <name>Label of Slave</name>
+          <description>You can choose where to deploy your cluster by typing exact slave label here.</description>
+          <defaultValue>build-slave-1 || build-slave-2 || build-slave-3 || build-slave-4 || build-slave-5</defaultValue>
+          <allNodesMatchingLabel>false</allNodesMatchingLabel>
+          <triggerIfResult>allCases</triggerIfResult>
+          <nodeEligibility class="org.jvnet.jenkins.plugins.nodelabelparameter.node.AllNodeEligibility"/>
+        </org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
   </properties>
   <scm class="hudson.scm.NullSCM"/>
-  <canRoam>true</canRoam>
+  <assignedNode>build-slave-1 || build-slave-2 || build-slave-3 || build-slave-4 || build-slave-5</assignedNode>
+  <canRoam>false</canRoam>
   <disabled>false</disabled>
   <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
   <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
@@ -98,14 +108,48 @@
   <builders>
     <hudson.tasks.Shell>
       <command>set -x
-cd /home/jenkins/workspace/deploy_cluster/
-export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}-${NAME}
+export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}
 export PYTHONUNBUFFERED=1
-python build_cluster.py</command>
+curl -o ./build_cluster.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/build_cluster.py&quot;
+curl -o ./scancodes.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/scancodes.py&quot;
+
+python build_cluster.py
+
+#JOB NEVER ENDS, IT JUST RUNS WHILE ENV IS ALIVE.
+#ABORT THE BUILD TO DESTROY RUNNIN ENV
+set +x
+echo &quot;Cluster is ready. Abort job to destroy cluster.&quot;
+while true
+do
+    sleep 60
+done
+</command>
     </hudson.tasks.Shell>
   </builders>
-  <publishers/>
+  <publishers>
+    <org.jenkinsci.plugins.postbuildscript.PostBuildScript plugin="postbuildscript@0.17">
+      <buildSteps>
+        <hudson.tasks.Shell>
+          <command>set -x
+export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}
+export PYTHONUNBUFFERED=1
+python build_cluster.py --destroy
+</command>
+        </hudson.tasks.Shell>
+      </buildSteps>
+      <scriptOnlyIfSuccess>false</scriptOnlyIfSuccess>
+      <scriptOnlyIfFailure>false</scriptOnlyIfFailure>
+      <markBuildUnstable>false</markBuildUnstable>
+    </org.jenkinsci.plugins.postbuildscript.PostBuildScript>
+  </publishers>
   <buildWrappers>
+    <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.6"/>
+    <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.1">
+      <colorMapName>css</colorMapName>
+    </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
+    <org.jenkinsci.plugins.buildnamesetter.BuildNameSetter plugin="build-name-setter@1.5.1">
+      <template>${BUILD_USER_ID}-${BUILD_NUMBER}-${PERSONAL_TAG}</template>
+    </org.jenkinsci.plugins.buildnamesetter.BuildNameSetter>
     <org.jenkinsci.plugins.builduser.BuildUser plugin="build-user-vars-plugin@1.4"/>
   </buildWrappers>
 </project>
