@@ -2,7 +2,6 @@
 
 import os
 import re
-import sqlite3
 import subprocess
 import sys
 import time
@@ -17,23 +16,20 @@ cfg = dict()
 cfg["ENV_NAME"] = os.getenv("ENV_NAME")
 cfg["ISO_URL"] = os.getenv("ISO_URL")
 
-# networks defenition
+# networks definition
 cfg["ADMIN_NET"] = os.getenv("ADMIN_NET", "10.88.0.0/16")
 cfg["PUBLIC_NET"] = os.getenv("PUBLIC_NET", "172.16.59.0/24")
 cfg["PUB_SUBNET_SIZE"] = int(os.getenv("PUB_SUBNET_SIZE", 28))
 cfg["ADM_SUBNET_SIZE"] = int(os.getenv("ADM_SUBNET_SIZE", 28))
 
-#DB
-cfg["DB_FILE"] = os.getenv("DB_FILE", "build_cluster.db")
-
-#fuel node credentials
+# fuel node credentials
 cfg["FUEL_SSH_USERNAME"] = os.getenv("FUEL_SSH_USERNAME", "root")
 cfg["FUEL_SSH_PASSWORD"] = os.getenv("FUEL_SSH_PASSWORD", "r00tme")
 cfg["KEYSTONE_USERNAME"] = os.getenv("KEYSTONE_USERNAME", "admin")
 cfg["KEYSTONE_PASSWORD"] = os.getenv("KEYSTONE_PASSWORD", "admin")
 cfg["KEYSTONE_TENANT"] = os.getenv("KEYSTONE_TENANT", "admin")
 
-#nodes settings
+# nodes settings
 cfg["ADMIN_RAM"] = int(os.getenv("ADMIN_RAM", 4096))
 cfg["ADMIN_CPU"] = int(os.getenv("ADMIN_CPU", 2))
 cfg["SLAVE_RAM"] = int(os.getenv("SLAVE_RAM", 3072))
@@ -53,50 +49,11 @@ cfg["RELEASE"] = os.getenv("RELEASE")
 cfg["HA"] = os.getenv("HA")
 cfg["NETWORK_TYPE"] = os.getenv("NETWORK_TYPE")
 
-db = None
-
 try:
     vconn = libvirt.open("qemu:///system")
 except:
-    print ("\nERRROR: libvirt is inaccessible!")
+    print ("\nERROR: libvirt is inaccessible!")
     sys.exit(10)
-
-
-def initialize_database():
-    """ This functions initializes DB
-        either by creating it or just opening
-    """
-    global db
-
-    db = sqlite3.Connection(cfg["DB_FILE"])
-    cursor = db.cursor()
-    try:
-        cursor.execute(
-            "CREATE TABLE IF NOT EXISTS nets ("
-            "net TEXT, "
-            "env TEXT, "
-            "interface TEXT);"
-        )
-        cursor.execute(
-            "CREATE TABLE IF NOT EXISTS envs ("
-            "env TEXT, "
-            "owner TEXT, "
-            "nodes_count INT, "
-            "admin_ram INT, "
-            "admin_cpu INT, "
-            "slave_ram INT, "
-            "slave_cpu INT, "
-            "deploy_type INT);"
-        )
-        cursor.execute(
-            "CREATE TABLE IF NOT EXISTS disks ("
-            "env TEXT, "
-            "node TEXT, "
-            "filename TEXT);"
-        )
-    except:
-        print ("Unable to open/create database {0}".format(cfg["DB_FILE"]))
-        sys.exit(5)
 
 
 def pprint_dict(subj):
@@ -104,18 +61,6 @@ def pprint_dict(subj):
         return False
     for k, v in sorted(subj.items()):
         print (" {0:20}: {1}".format(k, v))
-
-
-def env_is_available():
-    cursor = db.cursor()
-    cursor.execute(
-        "SELECT * FROM nets WHERE env='{0}';".format(cfg["ENV_NAME"])
-    )
-
-    if cursor.fetchone() is None:
-        return True
-    else:
-        return False
 
 
 def get_free_subnet_from_libvirt():
@@ -147,21 +92,11 @@ def get_free_subnet_from_libvirt():
     cfg["ADMIN_SUBNET"] = sorted(admin_subnets)[0]
     cfg["PUBLIC_SUBNET"] = sorted(public_subnets)[0]
     print (
-        "Following subnets will be used:\n"
+        "The following subnets will be used:\n"
         " ADMIN_SUBNET:   {0}\n"
         " PUBLIC_SUBNET:  {1}\n".format(cfg["ADMIN_SUBNET"],
                                         cfg["PUBLIC_SUBNET"])
     )
-    sql_query = [
-        (str(cfg["ADMIN_SUBNET"]), str(cfg["ENV_NAME"]),
-         str(cfg["ENV_NAME"] + "_adm")),
-        (str(cfg["PUBLIC_SUBNET"]), str(cfg["ENV_NAME"]),
-         str(cfg["ENV_NAME"] + "_pub"))
-    ]
-    print sql_query
-    cursor = db.cursor()
-    cursor.executemany("INSERT INTO nets VALUES (?,?,?)", sql_query)
-    db.commit()
     return True
 
 
@@ -189,21 +124,10 @@ def download_iso():
     proc.wait()
 
     if proc.returncode == 0:
-        print("\nISO successfuly downloaded")
+        print("\nISO successfully downloaded")
     else:
         print("\nERROR: Cannot download ISO")
         sys.exit(20)
-
-
-def register_env():
-    cursor = db.cursor()
-    cursor.execute(
-        "INSERT INTO envs VALUES ('{0}','{1}',{2},{3},{4},{5},{6},{7});"
-        .format(cfg["ENV_NAME"], "nobody", cfg["NODES_COUNT"],
-                cfg["ADMIN_RAM"], cfg["ADMIN_CPU"], cfg["SLAVE_RAM"],
-                cfg["SLAVE_CPU"], 1)
-    )
-    db.commit()
 
 
 def define_nets():
@@ -246,7 +170,7 @@ def define_nets():
         print ("\nERROR: Unable to create public subnet in libvirt!")
         sys.exit(11)
 
-    print ("Networks have been successfuly created.")
+    print ("Networks have been successfully created.")
 
 
 def volume_create(name):
@@ -617,10 +541,9 @@ def wait_for_cluster_is_ready():
 
 
 def cleanup():
-    if env_is_available():
-        print("{0} environment is not exist!".format(cfg["ENV_NAME"]))
-        sys.exit(127)
-
+    """
+    Cleanup procedure now always returns success
+    """
     for vm in vconn.listAllDomains():
         if vm.name().startswith(cfg["ENV_NAME"]):
             vm.destroy()
@@ -631,15 +554,6 @@ def cleanup():
                     .listAllVolumes():
         if vol.name().startswith(cfg["ENV_NAME"]):
             vol.delete()
-
-    cursor = db.cursor()
-    cursor.execute(
-        "DELETE FROM nets WHERE env='{0}'".format(cfg["ENV_NAME"])
-    )
-    cursor.execute(
-        "DELETE FROM envs WHERE env='{0}'".format(cfg["ENV_NAME"])
-    )
-    db.commit()
 
 
 def print_summary():
@@ -663,7 +577,6 @@ PUBLIC:
         float_end=str(netaddr.IPAddress(cfg["PUBLIC_SUBNET"].last) - 1)
     )
     print(summary)
-    #os.uname()[1] - hostname
     print ("\nFUEL ACCESS:\n\thttp://{0}:8000".format(
         str(cfg["PUBLIC_SUBNET"].ip + 2)))
     print ("\nVNC CONSOLES:\n")
@@ -681,14 +594,15 @@ PUBLIC:
 
 
 def main():
-    initialize_database()
-    print("\nDatabase ready.\n")
+    """
+    ENV_NAME must be unique, this is by default provided by Jenkins
+    unique BUILD_NUMBER
+    """
     if '--destroy' in sys.argv:
         print("Destroying {0}".format(cfg["ENV_NAME"]))
         cleanup()
-        db.close()
         sys.exit(0)
-    print("Starting script with following options:\n")
+    print("Starting script with the following options:\n")
     pprint_dict(cfg)
 
     download_iso()
@@ -699,15 +613,8 @@ def main():
     if cfg["ISO_URL"] is None:
         print ("\nERROR: $ISO_URL must be set!")
         sys.exit(2)
-    if not env_is_available():
-        print ("\nERROR: $ENV_NAME must be unique! {0} already exists"
-               .format(cfg["ENV_NAME"]))
-        sys.exit(4)
-
     if not get_free_subnet_from_libvirt():
         sys.exit(3)
-
-    register_env()
 
     define_nets()
 
@@ -729,7 +636,6 @@ def main():
 
     print_summary()
 
-    db.close()
     vconn.close()
 if __name__ == "__main__":
     main()
