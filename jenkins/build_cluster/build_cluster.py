@@ -2,6 +2,7 @@
 
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -43,6 +44,12 @@ cfg["ISO_DIR"] = os.getenv("PWD") + "/" + os.getenv("ISO_DIR", "iso") + "/"
 if cfg["ISO_URL"]:
     cfg["ISO_PATH"] = cfg["ISO_DIR"] + cfg["ISO_URL"] \
         .split("/")[-1].split(".torrent")[0]
+
+# new releases such as 8.0 and 9.0 use new interface naming scheme
+# e.g. 'enp0s4' instead of 'eth1' so we should get version of Fuel from ISO name
+
+new_versions = ["8.0", "9.0"]
+is_new = any(v in cfg["ISO_URL"] for v in new_versions)
 
 cfg["PREPARE_CLUSTER"] = os.getenv("PREPARE_CLUSTER")
 cfg["RELEASE"] = os.getenv("RELEASE")
@@ -599,9 +606,15 @@ def main():
     unique BUILD_NUMBER
     """
     if '--destroy' in sys.argv:
+        # ignore SIGTERM & SIGINT to have a chance to make cleanup
+        # uninterrupted in case if multiple signals are coming
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+
         print("Destroying {0}".format(cfg["ENV_NAME"]))
         cleanup()
         sys.exit(0)
+
     print("Starting script with the following options:\n")
     pprint_dict(cfg)
 
