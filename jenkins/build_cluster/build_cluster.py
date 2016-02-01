@@ -62,6 +62,11 @@ except:
     print ("\nERROR: libvirt is inaccessible!")
     sys.exit(10)
 
+try:
+    dnl = open(os.devnull, 'w')
+except:
+    dnl = None
+
 
 def pprint_dict(subj):
     if not isinstance(subj, dict):
@@ -418,7 +423,7 @@ def inject_ifconfig_ssh():
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=None
+            stderr=dnl
         )
 
         print(proc.communicate(input=rule)[0])
@@ -426,11 +431,11 @@ def inject_ifconfig_ssh():
         proc.wait()
 
         if proc.returncode == 0:
-            print("Inject successful")
+            print("Inject successful!")
             return True
         else:
             retries += 1
-            print("Retry # {0} in 60 seconds".format(retries))
+            sys.stdout.write("{0}...".format(retries))
             time.sleep(60)
 
 
@@ -447,18 +452,18 @@ def wait_for_api_is_ready():
            "{usr}@{admip}".format(usr=cfg["FUEL_SSH_USERNAME"],
                                   admip=str(cfg["ADMIN_SUBNET"].ip + 2)),
            "/usr/bin/fuel env"]
-
+    sys.stdout.write("Waiting until Nailgun API is ready: ")
     retries = 0
     while retries < 50:
-        proc = subprocess.Popen(cmd, stdin=None, stdout=None, stderr=None)
+        proc = subprocess.Popen(cmd, stdin=None, stdout=dnl, stderr=dnl)
         proc.wait()
         if proc.returncode == 0:
-            print ("\nNailgun API seems to be ready, waiting 60 sec.")
+            print("\nNailgun API seems to be ready, waiting 60 sec.")
             time.sleep(60)
             return True
         else:
             retries += 1
-            print ("\nNailgun API is not ready. Retry in 60 seconds")
+            sys.stdout.write("{0}...".format(retries))
             time.sleep(60)
     return False
 
@@ -468,12 +473,12 @@ def configure_nailgun():
         return
 
     conf_opts = {
-        "HA": "--mode ha",
+        "HA": "--mode ha" if not is_new else "",
         "NO_HA": "--mode multinode",
         "neutron_vlan": "--net neutron --nst vlan" if not is_new else "--nst vlan",
         "neutron_gre": "--net neutron --nst gre" if not is_new else "--nst gre",
         "neutron_tun": "--net neutron --nst tun" if not is_new else "--nst tun",
-        "nova": "--net nova",
+        "nova": "--net nova" if not is_new else "",
         "Ubuntu": 2,
         "CentOS": 1
     }
@@ -516,6 +521,7 @@ def configure_nailgun():
         "StrictHostKeyChecking=no",
         "{usr}@{admip}".format(usr=cfg["FUEL_SSH_USERNAME"],
                                admip=str(cfg["ADMIN_SUBNET"].ip + 2)),
+        "sed -i -e'/^ListenAddress.*$/d' /etc/ssh/sshd_config ; service sshd reload;"
         "/usr/bin/fuel env -c --name {name} --release {release} {ha} {network};"
         "/usr/bin/fuel settings --env-id 1 --download;"
         "/usr/bin/fuel network --env-id 1 -d; {sed}"
@@ -530,14 +536,14 @@ def configure_nailgun():
     ]
 
     print(cmd)
-    proc = subprocess.Popen(cmd, stdin=None, stdout=None, stderr=None)
+    proc = subprocess.Popen(cmd, stdin=None, stdout=None, stderr=dnl)
     proc.wait()
     if proc.returncode == 0:
         print ("\nNailgun has been configured")
         return True
     time.sleep(60)
-    print("Retry")
-    proc = subprocess.Popen(cmd, stdin=None, stdout=None, stderr=None)
+    print("Retrying")
+    proc = subprocess.Popen(cmd, stdin=None, stdout=None, stderr=dnl)
     proc.wait()
     if proc.returncode == 0:
         print ("\nNailgun has been configured")
@@ -654,5 +660,8 @@ def main():
     print_summary()
 
     vconn.close()
+
+    dnl.close()
+
 if __name__ == "__main__":
     main()
