@@ -13,6 +13,8 @@ import netaddr
 import scancodes
 
 cfg = dict()
+is_new = False
+
 # required vars
 cfg["ENV_NAME"] = os.getenv("ENV_NAME")
 cfg["ISO_URL"] = os.getenv("ISO_URL")
@@ -44,12 +46,10 @@ cfg["ISO_DIR"] = os.getenv("PWD") + "/" + os.getenv("ISO_DIR", "iso") + "/"
 if cfg["ISO_URL"]:
     cfg["ISO_PATH"] = cfg["ISO_DIR"] + cfg["ISO_URL"] \
         .split("/")[-1].split(".torrent")[0]
-
-# new releases such as 8.0 and 9.0 use new interface naming scheme
-# e.g. 'enp0s4' instead of 'eth1' so we should get version of Fuel from ISO name
-
-new_versions = ["8.0", "9.0"]
-is_new = any(v in cfg["ISO_URL"] for v in new_versions)
+    # new releases such as 8.0 and 9.0 use new interface naming scheme
+    # e.g. 'enp0s4' instead of 'eth1' so we should get version of Fuel from ISO name
+    new_versions = ["8.0", "9.0"]
+    is_new = any(v in cfg["ISO_URL"] for v in new_versions)
 
 cfg["PREPARE_CLUSTER"] = os.getenv("PREPARE_CLUSTER")
 cfg["RELEASE"] = os.getenv("RELEASE")
@@ -373,8 +373,10 @@ def send_keys(instance):
 
 
 def inject_ifconfig_ssh():
+
+    iface = "eth1" if not is_new else "enp0s4"
     rule = \
-        "DEVICE=eth1\n" \
+        "DEVICE={iface}\n" \
         "ONBOOT=yes\n" \
         "BOOTPROTO=static\n" \
         "NM_CONTROLLED=no\n" \
@@ -383,13 +385,14 @@ def inject_ifconfig_ssh():
         "GATEWAY={gw}\n" \
         "DNS1={dns}\n" \
         .format(
+            iface=iface,
             ip=str(cfg["PUBLIC_SUBNET"].ip + 2),
             netmask=str(cfg["PUBLIC_SUBNET"].netmask),
             gw=str(cfg["PUBLIC_SUBNET"].ip + 1),
             dns=str(cfg["ADMIN_SUBNET"].ip + 1)
         )
     print ("\nTo fuel:\n{0}".format(rule))
-    ifcfg = "/etc/sysconfig/network-scripts/ifcfg-eth1"
+    ifcfg = "/etc/sysconfig/network-scripts/ifcfg-{iface}".format(iface=iface)
     psw = cfg["FUEL_SSH_PASSWORD"]
     usr = cfg["FUEL_SSH_USERNAME"]
     admip = str(cfg["ADMIN_SUBNET"].ip + 2)
@@ -403,7 +406,7 @@ def inject_ifconfig_ssh():
         "-o",
         "StrictHostKeyChecking=no",
         "{usr}@{admip}".format(usr=usr, admip=admip),
-        "cat - > {ifcfg} ; /etc/init.d/network restart".format(ifcfg=ifcfg)
+        "cat - > {ifcfg} ; /sbin/ifup {iface}".format(ifcfg=ifcfg, iface=iface)
     ]
 
     retries = 0
@@ -467,8 +470,9 @@ def configure_nailgun():
     conf_opts = {
         "HA": "--mode ha",
         "NO_HA": "--mode multinode",
-        "neutron_vlan": "--net neutron --nst vlan",
-        "neutron_gre": "--net neutron --nst gre",
+        "neutron_vlan": "--net neutron --nst vlan" if not is_new else "--nst vlan",
+        "neutron_gre": "--net neutron --nst gre" if not is_new else "--nst gre",
+        "neutron_tun": "--net neutron --nst tun" if not is_new else "--nst tun",
         "nova": "--net nova",
         "Ubuntu": 2,
         "CentOS": 1
