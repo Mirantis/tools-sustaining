@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import re
 import signal
@@ -435,7 +437,7 @@ def inject_ifconfig_ssh():
             return True
         else:
             retries += 1
-            sys.stdout.write("{0}...".format(retries))
+            print("{0}...".format(retries), end='')
             time.sleep(60)
 
 
@@ -452,7 +454,7 @@ def wait_for_api_is_ready():
            "{usr}@{admip}".format(usr=cfg["FUEL_SSH_USERNAME"],
                                   admip=str(cfg["ADMIN_SUBNET"].ip + 2)),
            "/usr/bin/fuel env"]
-    sys.stdout.write("Waiting until Nailgun API is ready: ")
+    print("Waiting until Nailgun API is ready: ", end='')
     retries = 0
     while retries < 50:
         proc = subprocess.Popen(cmd, stdin=None, stdout=dnl, stderr=dnl)
@@ -463,7 +465,7 @@ def wait_for_api_is_ready():
             return True
         else:
             retries += 1
-            sys.stdout.write("{0}...".format(retries))
+            print("{0}...".format(retries), end='')
             time.sleep(60)
     return False
 
