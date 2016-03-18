@@ -62,3 +62,4 @@
       with_items:
         - common_vars.yml
         - patch_environment.yml
+        - cleanup_knownhosts.yml
