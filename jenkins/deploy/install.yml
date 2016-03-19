@@ -6,14 +6,19 @@
     rally_job_name: rally
     tempest_job_name: tempest
     patching_job_name: patch_environment
+    ta_subpath: testing_automation/ansible
 
   tasks:
 
-    - name: Rally | upload inventory
-      copy: src=inventory.ini dest={{ jobs_dir }}/{{ rally_job_name }}
+    - name: upload inventory
+      copy: src=../{{ ta_subpath }}/inventory.ini dest={{ jobs_dir }}/{{ item }}
+      with_items:
+        - "{{ rally_job_name }}"
+        - "{{ tempest_job_name }}"
+        - "{{ patching_job_name }}"
 
     - name: Rally | upload playbooks
-      copy: src=playbooks/{{ item }} dest={{ jobs_dir }}/{{ rally_job_name }}
+      copy: src=../{{ ta_subpath }}/playbooks/{{ item }} dest={{ jobs_dir }}/{{ rally_job_name }}
       with_items:
         - cleanup_test_vm.yml
         - common_vars.yml
@@ -25,7 +30,7 @@
       file: path={{ jobs_dir }}/{{ rally_job_name }}/contrib state=directory
 
     - name: Rally | upload contrib
-      copy: src=playbooks/contrib/{{ item }} dest={{ jobs_dir }}/{{ rally_job_name }}/contrib
+      copy: src=../{{ ta_subpath }}/playbooks/contrib/{{ item }} dest={{ jobs_dir }}/{{ rally_job_name }}/contrib
       with_items:
         - instance_dd_test.sh
         - openrc
@@ -34,11 +39,8 @@
         - template_ubuntu.xml
         - testing-network_pub.xml
 
-    - name: Tempest | upload inventory
-      copy: src=inventory.ini dest={{ jobs_dir }}/{{ tempest_job_name }}
-
     - name: Tempest | upload playbooks
-      copy: src=playbooks/{{ item }} dest={{ jobs_dir }}/{{ tempest_job_name }}
+      copy: src=../{{ ta_subpath }}/playbooks/{{ item }} dest={{ jobs_dir }}/{{ tempest_job_name }}
       with_items:
         - common_vars.yml
         - perform_tempest.yml
@@ -50,15 +52,12 @@
       file: path={{ jobs_dir }}/{{ tempest_job_name }}/contrib state=directory
 
     - name: Tempest | upload contrib
-      copy: src=playbooks/contrib/{{ item }} dest={{ jobs_dir }}/{{ tempest_job_name }}/contrib
+      copy: src=../{{ ta_subpath }}/playbooks/contrib/{{ item }} dest={{ jobs_dir }}/{{ tempest_job_name }}/contrib
       with_items:
         - tempest-tmux
 
-    - name: Patching | upload inventory
-      copy: src=inventory.ini dest={{ jobs_dir }}/{{ patching_job_name }}
-
     - name: Patching | upload playbooks
-      copy: src=playbooks/{{ item }} dest={{ jobs_dir }}/{{ patching_job_name }}
+      copy: src=../{{ ta_subpath }}/playbooks/{{ item }} dest={{ jobs_dir }}/{{ patching_job_name }}
       with_items:
         - common_vars.yml
         - patch_environment.yml
