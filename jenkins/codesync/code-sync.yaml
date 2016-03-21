@@ -1,0 +1,151 @@
+- options:
+    gerrit-base-uri: ssh://jenkins@review.fuel-infra.org:29418
+    gerrit-topic: sync/stable/liberty
+    downstream-branch: openstack-ci/fuel-8.0/liberty
+    upstream-branch: stable/liberty
+
+    project:
+      - nova:
+          repo: openstack/nova
+          mail-to: mos-nova@mirantis.com
+      - python-novaclient:
+          repo: openstack/python-novaclient
+          mail-to: mos-nova@mirantis.com
+
+      - neutron:
+          repo: openstack/neutron
+          mail-to: mos-neutron@mirantis.com
+      - python-neutronclient:
+          repo: openstack/python-neutronclient
+          mail-to: mos-neutron@mirantis.com
+
+      - keystone:
+          repo: openstack/keystone
+          mail-to: mos-keystone@mirantis.com
+      - python-keystoneclient:
+          repo: openstack/python-keystoneclient
+          mail-to: mos-keystone@mirantis.com
+      - keystonemiddleware:
+          repo: openstack/keystonemiddleware
+          mail-to: mos-keystone@mirantis.com
+
+      - glance:
+          repo: openstack/glance
+          mail-to: mos-glance@mirantis.com
+      - python-glanceclient:
+          repo: openstack/python-glanceclient
+          mail-to: mos-glance@mirantis.com
+      - glance_store:
+          repo: openstack/glance_store
+          mail-to: mos-glance@mirantis.com
+
+      - cinder:
+          repo: openstack/cinder
+          mail-to: mos-cinder@mirantis.com
+      - python-cinderclient:
+          repo: openstack/python-cinderclient
+          mail-to: mos-cinder@mirantis.com
+
+      - heat:
+          repo: openstack/heat
+          mail-to: mos-heat@mirantis.com
+      - python-heatclient:
+          repo: openstack/python-heatclient
+          mail-to: mos-heat@mirantis.com
+
+      - horizon:
+          repo: openstack/horizon
+          mail-to: mos-horizon@mirantis.com
+
+      - sahara:
+          repo: openstack/sahara
+          mail-to: mos-sahara@mirantis.com
+      - python-saharaclient:
+          repo: openstack/python-saharaclient
+          mail-to: mos-sahara@mirantis.com
+
+      - murano:
+          repo: openstack/murano
+          mail-to: mos-murano@mirantis.com
+      - python-muranoclient:
+          repo: openstack/python-muranoclient
+          mail-to: mos-murano@mirantis.com
+
+      - ceilometer:
+          repo: openstack/ceilometer
+          mail-to: mos-ceilometer@mirantis.com
+      - python-ceilometerclient:
+          repo: openstack/python-ceilometerclient
+          mail-to: mos-ceilometer@mirantis.com
+
+      - swift:
+          repo: openstack/swift
+          mail-to: akhivin@mirantis.com  # :)
+      - python-swiftclient:
+          repo: openstack/python-swiftclient
+          mail-to: akhivin@mirantis.com  # :)
+
+      - ironic:
+          repo: openstack/ironic
+          mail-to: mos-ironic@mirantis.com
+      - python-ironicclient:
+          repo: openstack/python-ironicclient
+          mail-to: mos-ironic@mirantis.com
+
+      - oslo.cache:
+          repo: openstack/oslo.cache
+          mail-to: mos-oslo@mirantis.com
+      - oslo.concurrency:
+          repo: openstack/oslo.concurrency
+          mail-to: mos-oslo@mirantis.com
+      - oslo.config:
+          repo: openstack/oslo.config
+          mail-to: mos-oslo@mirantis.com
+      - oslo.context:
+          repo: openstack/oslo.context
+          mail-to: mos-oslo@mirantis.com
+      - oslo.db:
+          repo: openstack/oslo.db
+          mail-to: mos-oslo@mirantis.com
+      - oslo.i18n:
+          repo: openstack/oslo.i18n
+          mail-to: mos-oslo@mirantis.com
+      - oslo.log:
+          repo: openstack/oslo.log
+          mail-to: mos-oslo@mirantis.com
+      - oslo.messaging:
+          repo: openstack/oslo.messaging
+          mail-to: mos-oslo@mirantis.com
+      - oslo.middleware:
+          repo: openstack/oslo.middleware
+          mail-to: mos-oslo@mirantis.com
+      - oslo.policy:
+          repo: openstack/oslo.policy
+          mail-to: mos-oslo@mirantis.com
+      - oslo.reports:
+          repo: openstack/oslo.reports
+          mail-to: mos-oslo@mirantis.com
+      - oslo.rootwrap:
+          repo: openstack/oslo.rootwrap
+          mail-to: mos-oslo@mirantis.com
+      - oslo.serialization:
+          repo: openstack/oslo.serialization
+          mail-to: mos-oslo@mirantis.com
+      - oslo.service:
+          repo: openstack/oslo.service
+          mail-to: mos-oslo@mirantis.com
+      - oslo.utils:
+          repo: openstack/oslo.utils
+          mail-to: mos-oslo@mirantis.com
+      - oslo.versionedobjects:
+          repo: openstack/oslo.versionedobjects
+          mail-to: mos-oslo@mirantis.com
+      - oslo.vmware:
+          repo: openstack/oslo.vmware
+          mail-to: mos-oslo@mirantis.com
+      - oslosphinx:
+          repo: openstack/oslosphinx
+          mail-to: mos-oslo@mirantis.com
+      - oslotest:
+          repo: openstack/oslotest
+          mail-to: mos-oslo@mirantis.com

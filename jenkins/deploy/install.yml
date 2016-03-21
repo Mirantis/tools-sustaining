@@ -6,6 +6,7 @@
     rally_job_name: rally
     tempest_job_name: tempest
     patching_job_name: patch_environment
+    codesync_job_name: merge_upstream
     ta_subpath: testing_automation/ansible
 
   tasks:
@@ -62,3 +63,12 @@
         - common_vars.yml
         - patch_environment.yml
         - cleanup_knownhosts.yml
+
+    - name: codesync | mkdir
+      file: path={{ jobs_dir }}/{{ codesync_job_name }} state=directory
+
+    - name: codesync | upload script + config
+      copy: src=../codesync/{{ item.file }} dest={{ jobs_dir }}/{{ codesync_job_name }} mode={{ item.mode }}
+      with_items:
+        - { file: "codesync.py", mode: "755"}
+        - { file: "code-sync.yaml", mode: "644"}
