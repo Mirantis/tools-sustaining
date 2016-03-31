@@ -21,6 +21,9 @@ commit_stats = {
     "total_commits": 0,
     "total_regexp_errors": 0
 }
+failed_projects_list = []
+push_failures_list = []
+merge_not_needed_list = []
 
 
 class FailedToMerge(Exception):
@@ -93,6 +96,32 @@ def _get_merge_commit_message(repo, downstream_branch, upstream_branch):
                        'commits': commits}
 
 
+def personalize_committer(repo):
+    result = subprocess.check_output(
+        ['git', 'config', '--global', 'user.email',
+         config_data[0]['options']['committer-email']],
+        cwd=repo
+    )
+    result = subprocess.check_output(
+        ['git', 'config', '--global', 'user.name',
+         config_data[0]['options']['committer-name']],
+        cwd=repo
+    )
+    return result
+
+
+def local_branch_exists(repo, branch):
+    branch_head = None
+    try:
+        branch_head = subprocess.check_output(
+            ['git', 'show-ref', '--verify', 'refs/heads/{0}'.format(branch)],
+            cwd=repo
+        )
+    except subprocess.CalledProcessError:
+        pass
+    return (branch_head is not None)
+
+
 def _merge_tip(repo, downstream_branch, upstream_branch):
     LOG.info('Trying to merge the tip of %s into %s...',
              upstream_branch, downstream_branch)
@@ -102,19 +131,43 @@ def _merge_tip(repo, downstream_branch, upstream_branch):
     if not upstream_branch.startswith('origin/'):
         upstream_branch = 'origin/' + upstream_branch
 
+    personalize_committer(repo)
+
     # print merge information for visibility purposes
     commits_range = '%s..%s' % (downstream_branch, upstream_branch)
     graph = subprocess.check_output(
         ['git', 'log', '--graph', '--pretty=format:%h %s', commits_range],
         cwd=repo
     )
-    LOG.info('Commits graph to be merged:\n\n%s', graph)
+
+    if graph:
+        LOG.info('Commits graph to be merged:\n\n"%s"', graph)
+    else:
+        merge_not_needed_list.append(repo)
+        raise FailedToMerge('Downstream branch is up-to-date/ahead of upstream branch, nothing to merge.')
+
+    local_downstream_branch = '/'.join(downstream_branch.split('/')[1:])
+
+    if local_branch_exists(repo, local_downstream_branch):
+        # cleanup local branch
+        subprocess.check_call(
+            ['git', 'checkout', 'master'],
+            cwd=repo,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        subprocess.check_call(
+            ['git', 'branch', '-D', local_downstream_branch],
+            cwd=repo,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
 
     subprocess.check_call(
-        ['git', 'checkout', downstream_branch],
+        ['git', 'checkout', '-b', local_downstream_branch,
+         downstream_branch],
         cwd=repo,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
+
     try:
         m = _get_merge_commit_message(repo, downstream_branch, upstream_branch)
         LOG.info('Commit message:\n\n%s\n\n', m)
@@ -124,7 +177,9 @@ def _merge_tip(repo, downstream_branch, upstream_branch):
             cwd=repo,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        if graph:
+            failed_projects_list.append(repo)
         raise FailedToMerge
     else:
         commit = _get_commit_id(repo)
@@ -152,10 +207,11 @@ def _upload_for_review(repo, commit, branch, topic=None):
         if 'no changes made' in stdout or 'no changes made' in stderr:
             LOG.info('No changes since the last sync. Skip.')
         else:
+            LOG.error('Something went wrong!')
+            LOG.error('stdout: {}'.format(stdout))
+            LOG.error('stderr: {}'.format(stderr))
+            push_failures_list.append(repo)
             LOG.error('Failed to push the commit %s to %s', commit, branch)
-            raise RuntimeError(
-                'Failed to push the commit %s to %s' % (commit, branch)
-            )
 
 
 def _cleanup(repo):
@@ -181,7 +237,7 @@ def _cleanup(repo):
 
 
 def sync_project(gerrit_uri, downstream_branch, upstream_branch, topic=None,
-                 dry_run=False):
+                 cleanup=True, dry_run=False):
     '''Merge the tip of the tracked upstream branch and upload it for review.
 
     Tries to clone (fetch, if path already exists) the git repo and do a
@@ -213,15 +269,22 @@ def sync_project(gerrit_uri, downstream_branch, upstream_branch, topic=None,
 
         return commit
     finally:
-        _cleanup(repo)
+        if cleanup:
+            _cleanup(repo)
+        else:
+            LOG.info('!!! Explictly chosen *NOT* to cleanup. You must '
+                     'perform all further stuff *MANUALLY*, uncluding '
+                     'final cleanup !!!')
 
 
 def merge_bug_fixes(gerrit_uri, downstream_branch, upstream_branch, topic=None,
-                    dry_run=False):
+                    cleanup=True, dry_run=False):
     LOG.info("Trying to cherry-pick only High/Critical bug fixes of %s into "
              "%s...", upstream_branch, downstream_branch)
 
     repo = _clone_or_fetch(gerrit_uri)
+
+    personalize_committer(repo)
 
     if not downstream_branch.startswith("origin/"):
         downstream_branch = "origin/" + downstream_branch
@@ -356,7 +419,7 @@ def read_config(config_file):
 
 
 def process_repos(action, downstream_branch, upstream_branch,
-                  topic, dry_run=True):
+                  topic, cleanup=True, dry_run=True, repo_names=None):
     repos_list = config_data[0]['options']['project']
     gerrit_base_uri = config_data[0]['options']['gerrit-base-uri']
     upstream_branch = upstream_branch or \
@@ -371,21 +434,24 @@ def process_repos(action, downstream_branch, upstream_branch,
     elif action == 'merge_bug_fixes':
         func = merge_bug_fixes
 
-    for repo in repos_list:
+    if not repo_names:
+        repo_names = [repo[repo.keys()[0]]['repo'] for repo in repos_list]
+
+    for repo_name in repo_names:
         LOG.info("========================================================")
-        LOG.info("processing project: {0}".format(repo.keys()[0]))
-        repo_name = repo[repo.keys()[0]]['repo']
-        LOG.info("repo name: {0}".format(repo_name))
+        LOG.info("processing project: {0}".format(repo_name))
         try:
             commit = func(gerrit_uri=gerrit_base_uri + "/" + repo_name,
                           downstream_branch=downstream_branch,
                           upstream_branch=upstream_branch,
                           topic=topic,
+                          cleanup=cleanup,
                           dry_run=dry_run)
             if commit:
                 print(commit)
-        except FailedToMerge:
-            LOG.info("Automatic merge failed, trying next repo from batch.")
+        except FailedToMerge as e:
+            LOG.info("Automatic merge failed: {0}".format(e.message))
+            LOG.info("Trying next repo from batch.")
             continue
 
     if func == merge_bug_fixes:
@@ -393,6 +459,19 @@ def process_repos(action, downstream_branch, upstream_branch,
         LOG.info("Commits found: {0}".format(commit_stats["total_commits"]))
         LOG.info("Regexp errors encountered: {0}".format(
             commit_stats["total_regexp_errors"]))
+    elif func == sync_project:
+        if failed_projects_list:
+            LOG.info("Upstream changes failed to merge automatically for the following projects:")
+            for project_repo in failed_projects_list:
+                LOG.info("{0}".format(project_repo))
+        if push_failures_list:
+            LOG.info("Failed to push merge commit for the following projects:")
+            for push_failure in push_failures_list:
+                LOG.info("{0}".format(push_failure))
+        if merge_not_needed_list:
+            LOG.info("Failed to push merge commit for the following projects:")
+            for project in merge_not_needed_list:
+                LOG.info("{0}".format(project))
 
 
 def main():
@@ -445,6 +524,11 @@ def main():
         default=os.getenv('SYNC_GERRIT_TOPIC')
     )
     parser.add_argument(
+        '--cleanup',
+        help="Clean up after merge attempt",
+        action='store_true'
+    )
+    parser.add_argument(
         '--dry-run',
         help="do not upload a merge commit on review - just try local merge",
         action='store_true'
@@ -456,11 +540,19 @@ def main():
             parser.print_usage()
             raise ValueError('Required arguments not passed')
         read_config(args.config)
+        cleanup = bool(os.getenv('SYNC_CLEANUP') == 'true') or args.cleanup
         dry_run = bool(os.getenv('SYNC_DRY_RUN') == 'true') or args.dry_run
+        repo_names = os.getenv('PROJECTS_LIST')
+        if not repo_names:
+            repo_names = None
+        else:
+            repo_names = repo_names.split('\n')
         process_repos(args.action,
                       args.downstream_branch,
                       args.upstream_branch,
                       args.topic,
+                      repo_names=repo_names,
+                      cleanup=cleanup,
                       dry_run=dry_run)
     except Exception:
         # unhandled runtime errors
