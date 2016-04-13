@@ -1,0 +1,17 @@
+- options:
+    gerrit-base-uri: ssh://vitaly.sedelnik@review.fuel-infra.org:29418
+    gerrit-topic: sync/stable/liberty
+    downstream-branch: openstack-ci/fuel-8.0/liberty
+    upstream-branch: stable/liberty
+    committer-name: Vitaly Sedelnik
+    committer-email: vsedelnik@mirantis.com
+
+    project:
+
+      - neutron:
+          repo: openstack/neutron
+          mail-to: mos-neutron@mirantis.com
+#      - python-neutronclient:
+#          repo: openstack/python-neutronclient
+#          mail-to: mos-neutron@mirantis.com
+
