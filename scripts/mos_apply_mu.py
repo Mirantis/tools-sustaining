@@ -73,7 +73,8 @@ class Config(object):
                 'ubuntu':   'apt-get -o Dir::etc::sourcelist="-"'
                             ' -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
                             ' -o APT::Get::List-Cleanup="0" update\n'
-                            'apt-get -o Dir::etc::sourcelist="-"'
+                            'DEBIAN_FRONTEND=noninteractive'
+                            ' apt-get -o Dir::etc::sourcelist="-"'
                             ' -o Dir::Etc::sourceparts="/root/mos_update_repo/"'
                             ' -o APT::Get::List-Cleanup="0"'
                             ' -o Dpkg::Options::="--force-confdef"'
@@ -130,7 +131,7 @@ class Config(object):
             if '--no-rsync' in cmd:
                 self.cfg['no_rsync'] = True
             if '--version' in cmd:
-                self.errexit(msg="VER_ID: 20022016", code=19)
+                self.errexit(msg="VER_ID: 29042016", code=19)
 
         # validate all the data to find out incompatibles
         if (self.cfg['env_id'] > 0) and (self.cfg['all_envs']):
@@ -733,12 +734,53 @@ class Updater70(BasicUpdater):
         }
 
 
+class Updater80(BasicUpdater):
+    def __init__(self, cfg):
+        super(self.__class__, self).__init__(cfg)
+        self.cfg['repo_template'] = {
+            "ubuntu": {
+                "rsync":
+                    "rsync://mirror.fuel-infra.org/"
+                    "mirror/mos-repos/ubuntu/{MOS_VERSION}/dists/mos{MOS_VERSION}-{REPO_NAME}/",
+                "local_path":
+                    "/var/www/nailgun/mos-ubuntu/dists/mos{MOS_VERSION}-{REPO_NAME}/",
+                "repo_file":
+                    "/root/mos_update_repo/mos-{REPO_NAME}.list",
+                "repo_text":
+                    "deb http://{MASTER_IP}:8080/mos-ubuntu "
+                    "mos{MOS_VERSION}-{REPO_NAME} main restricted",
+                "prio": "1150"
+            },
+            "centos": {
+                "rsync":
+                    "rsync://mirror.fuel-infra.org/mirror/"
+                    "mos-repos/centos/mos{MOS_VERSION}-centos7-fuel/{REPO_NAME}/",
+                "local_path":
+                    "/var/www/nailgun/mos-centos/mos{MOS_VERSION}/{REPO_NAME}",
+                "repo_text":
+                    "[mos-{REPO_NAME}]\n"
+                    "name=mos-{REPO_NAME}\n"
+                    "baseurl=http://{MASTER_IP}:8080/mos-centos/mos{MOS_VERSION}/"
+                    "{REPO_NAME}/\ngpgcheck=0\n",
+                "repo_file":
+                    "/etc/yum.repos.d/mos-{REPO_NAME}.repo",
+                "prio": "100"
+            }
+        }
+        self.cfg['ubuntu_pool'] = {
+            'rsync': "rsync://mirror.fuel-infra.org"
+                     "/mirror/mos-repos/ubuntu/8.0/pool/",
+            'local_path': "/var/www/nailgun/mos-ubuntu/pool/"
+        }
+
+
 if __name__ == "__main__":
     v = {
         "5.1.1": Updater511,
         "6.0": Updater60,
         "6.1": Updater61,
-        "7.0": Updater70
+        "7.0": Updater70,
+        "8.0": Updater80
     }
     config = Config()
     ver = v.get(config.cfg['mos_version'], None)
