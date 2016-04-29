@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2015 Mirantis, Inc.
+# Copyright 2015-2016 Mirantis, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
@@ -18,6 +18,7 @@ import logging
 import os
 import subprocess
 import sys
+import time
 import urllib2
 import yaml
 
@@ -52,6 +53,9 @@ class Config(object):
             "try_offline": False,
             "really": False,
             "check": False,
+            "roles": None,
+            "nodes": None,
+            "interval": 0,
             "no_rsync": False,
             "use_latest": False,
             "ubuntu_pool": None,
@@ -100,6 +104,15 @@ class Config(object):
                 self.cfg['check'] = True
             if '--update' in cmd:
                 self.cfg['really'] = True
+            if '--interval' in cmd:
+                self.cfg['interval'] = int(cmd.split('=')[1])
+            if '--roles' in cmd:
+                t = cmd.split('=')[1]
+                self.cfg['roles'] = [r.strip() for r in t.split(',')]
+            if '--nodes' in cmd:
+                t = cmd.split('=')[1]
+                self.cfg['nodes'] = [r.strip() for r in t.split(',')]
+                self.cfg['all_envs'] = True
             if '--fuel-ip' in cmd:
                 fuel_ip = cmd.split('=')[1]
                 self.cfg['keystone'] = 'http://' + fuel_ip + ':5000/v2.0'
@@ -117,7 +130,7 @@ class Config(object):
             if '--no-rsync' in cmd:
                 self.cfg['no_rsync'] = True
             if '--version' in cmd:
-                self.errexit(msg="VER_ID: 05112015", code=19)
+                self.errexit(msg="VER_ID: 20022016", code=19)
 
         # validate all the data to find out incompatibles
         if (self.cfg['env_id'] > 0) and (self.cfg['all_envs']):
@@ -197,6 +210,14 @@ Optional arguments:
                  default: taken from /etc/fuel/version.yaml
   --master-ip    IP-Address of Fuel-master node
                  default: taken from /etc/fuel/astute.yaml
+  --roles        Comma-separated list of roles to update or check.
+                 default: all roles are selected
+  --nodes        Comma-separated list of nodes to update or check.
+                 default: all nodes are selected
+  --interval     Time gap in seconds between two consecutive nodes update.
+                 Might be useful in big environments, to update an environment
+                 more gently.
+                 default: 0
 
 Fuel 6.1 and higher options:
     By default only 'mos-updates' repository will
@@ -360,18 +381,24 @@ class BasicUpdater(object):
 
     def _affected_nodes(self):
         """
-        Returns a set(ip, os) of the selected nodes
+        Returns a set of tuples(ip, os) of the selected nodes
         :return: set
         """
-        _nodes = set()
-        for env in self.cfg['envs_list']:
-            for node in self.cfg['nodes_list']:
-                if node['cluster'] == env:
-                    if self.cfg['try_offline']:
-                        _nodes.add((node['ip'], node['os_platform']))
-                    elif node['online']:
-                        _nodes.add((node['ip'], node['os_platform']))
-        return _nodes
+        def _is_selected(node):
+            # These values are boolean
+            e = node['cluster'] in self.cfg['envs_list']
+            r = True if not self.cfg['roles'] else any(
+                set(self.cfg['roles']).intersection(
+                    set(node['roles'])))
+            o = node['online'] or self.cfg['try_offline']
+            n = True if not self.cfg['nodes'] else \
+                node['ip'] in self.cfg['nodes']
+            # Returns True if all conditions are met,
+            # otherwise False is returned
+            return all((e, r, o, n))
+
+        return set((n['ip'], n['os_platform'])
+                    for n in self.cfg['nodes_list'] if _is_selected(n))
 
     def check(self):
         """
@@ -433,7 +460,7 @@ echo "UPDATE=$REPO_STATE" >> $STATUS
             :return: string
             """
             _result = ""
-            _repos_activate =""
+            _repos_activate = ""
             # making header per each repo
             for repo in self.cfg['mos_repos_to_install']:
                 REPO_TEXT = self.cfg['repo_template'][os_version]['repo_text'].format(
@@ -484,21 +511,23 @@ echo "UPDATE=$REPO_STATE" >> $STATUS
                 LOG.info("Node {0}: started update. "
                          "Log at /var/log/remote/{0}/"
                          "mos_apply_mu.log".format(ip))
+            LOG.info("Waiting {0} seconds.".format(self.cfg['interval']))
+            time.sleep(self.cfg['interval'])
 
     def rsync(self):
         """
         downloads repositories to the fuel node
         :return:
         """
-        def _dir_check_or_create(dir):
+        def _dir_check_or_create(directory):
             """
             check whether dir exists, if not create it
             with all the subdirs
-            :param dir:
+            :param directory:
             :return: None
             """
             try:
-                os.makedirs(dir)
+                os.makedirs(directory)
             except:
                 pass
 
@@ -525,7 +554,7 @@ echo "UPDATE=$REPO_STATE" >> $STATUS
             LOG.info("RSYNC: Additional pool is downloading.")
             _dir_check_or_create(self.cfg['ubuntu_pool']['local_path'])
             cmd = ["rsync", "-vap", "--chmod=Dugo+x",
-                    self.cfg['ubuntu_pool']['rsync'], self.cfg['ubuntu_pool']['local_path']]
+                self.cfg['ubuntu_pool']['rsync'], self.cfg['ubuntu_pool']['local_path']]
             retval, text = self._run_helper(cmd=cmd)
             if retval != 0:
                 self.errexit("RSYNC: Error downloading pool! [{0}:{1}]".format(
