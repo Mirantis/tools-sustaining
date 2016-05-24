@@ -148,26 +148,11 @@ def _merge_tip(repo, downstream_branch, upstream_branch):
 
     local_downstream_branch = '/'.join(downstream_branch.split('/')[1:])
 
-    if local_branch_exists(repo, local_downstream_branch):
-        # cleanup local branch
-        subprocess.check_call(
-            ['git', 'checkout', 'master'],
-            cwd=repo,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        subprocess.check_call(
-            ['git', 'branch', '-D', local_downstream_branch],
-            cwd=repo,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-
     subprocess.check_call(
-        ['git', 'checkout', '-b', local_downstream_branch,
-         downstream_branch],
+        ['git', 'checkout', downstream_branch],
         cwd=repo,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
-
     try:
         m = _get_merge_commit_message(repo, downstream_branch, upstream_branch)
         LOG.info('Commit message:\n\n%s\n\n', m)
