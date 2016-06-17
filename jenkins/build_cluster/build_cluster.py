@@ -524,6 +524,7 @@ def configure_nailgun():
         "{usr}@{admip}".format(usr=cfg["FUEL_SSH_USERNAME"],
                                admip=str(cfg["ADMIN_SUBNET"].ip + 2)),
         "sed -i -e'/^ListenAddress.*$/d' /etc/ssh/sshd_config ; service sshd reload;"
+        "iptables -I INPUT -p tcp -m tcp --dport 22 -j ACCEPT;"
         "/usr/bin/fuel env -c --name {name} --release {release} {ha} {network};"
         "/usr/bin/fuel settings --env-id 1 --download;"
         "/usr/bin/fuel network --env-id 1 -d; {sed}"

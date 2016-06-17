@@ -4,6 +4,9 @@
   <description>When choosing parameters please remember that srv## slaves have 32G of RAM and 12 CPUs, while cz7377 has 256G RAM and 12 CPUs.</description>
   <keepDependencies>false</keepDependencies>
   <properties>
+    <org.bstick12.jenkinsci.plugins.leastload.LeastLoadDisabledProperty plugin="leastload@1.0.3">
+      <leastLoadDisabled>false</leastLoadDisabled>
+    </org.bstick12.jenkinsci.plugins.leastload.LeastLoadDisabledProperty>
     <hudson.model.ParametersDefinitionProperty>
       <parameterDefinitions>
         <hudson.model.StringParameterDefinition>
@@ -58,6 +61,7 @@
             <a class="string-array">
               <string>neutron_vlan</string>
               <string>neutron_gre</string>
+              <string>neutron_tun</string>
               <string>nova</string>
             </a>
           </choices>
@@ -85,7 +89,7 @@
         <org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition plugin="nodelabelparameter@1.5.1">
           <name>Label of Slave</name>
           <description>You can choose where to deploy your cluster by typing exact slave label here.</description>
-          <defaultValue>build-slave-1 || build-slave-2 || build-slave-3 || build-slave-4 || build-slave-5</defaultValue>
+          <defaultValue>build-slave</defaultValue>
           <allNodesMatchingLabel>false</allNodesMatchingLabel>
           <triggerIfResult>allCases</triggerIfResult>
           <nodeEligibility class="org.jvnet.jenkins.plugins.nodelabelparameter.node.AllNodeEligibility"/>
@@ -98,13 +102,14 @@
     </com.sonyericsson.rebuild.RebuildSettings>
   </properties>
   <scm class="hudson.scm.NullSCM"/>
-  <assignedNode>build-slave-1 || build-slave-2 || build-slave-3 || build-slave-4 || build-slave-5</assignedNode>
+  <assignedNode>build-slave</assignedNode>
   <canRoam>false</canRoam>
   <disabled>false</disabled>
   <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
   <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
   <triggers/>
   <concurrentBuild>true</concurrentBuild>
+  <customWorkspace>DEPLOY_CLUSTER</customWorkspace>
   <builders>
     <hudson.tasks.Shell>
       <command>set -x
@@ -145,7 +150,7 @@ python build_cluster.py --destroy
   <buildWrappers>
     <hudson.plugins.timestamper.TimestamperBuildWrapper plugin="timestamper@1.6"/>
     <hudson.plugins.ansicolor.AnsiColorBuildWrapper plugin="ansicolor@0.4.1">
-      <colorMapName>css</colorMapName>
+      <colorMapName>xterm</colorMapName>
     </hudson.plugins.ansicolor.AnsiColorBuildWrapper>
     <org.jenkinsci.plugins.buildnamesetter.BuildNameSetter plugin="build-name-setter@1.5.1">
       <template>${BUILD_USER_ID}-${BUILD_NUMBER}-${PERSONAL_TAG}</template>
