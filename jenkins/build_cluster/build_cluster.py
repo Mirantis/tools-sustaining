@@ -482,7 +482,13 @@ def do_update(conn_line,psw):
     if copy_update_helper(conn_line,psw):
         return sshpass_admin_node(
             psw=psw,
-            ssh_cmd=["ssh",conn_line,"/tmp/"+UPDATE_HELPER,],)
+            ssh_cmd=["ssh",
+                    "-o",
+                    "UserKnownHostsFile=/dev/null",
+                    "-o",
+                    "StrictHostKeyChecking=no",
+                    conn_line,
+                    "/tmp/"+UPDATE_HELPER,],)
     else:
         print ("ERROR: Unable to copy update script to admin node")
         return False
