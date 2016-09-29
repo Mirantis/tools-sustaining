@@ -703,6 +703,10 @@ def main():
 
     inject_ifconfig_ssh()
 
+    start_slaves()
+
+    wait_for_api_is_ready()
+
     if cfg["UPDATE_FUEL"]=="true":
         if do_update(
             admin_ssh_conn_line(usr = cfg["FUEL_SSH_USERNAME"],subnet=cfg["ADMIN_SUBNET"]),
@@ -710,10 +714,6 @@ def main():
             print("fuel update complete")
         else:
             print("ERROR: unable to update fuel")
-
-    start_slaves()
-
-    wait_for_api_is_ready()
 
     configure_nailgun()
 
