@@ -54,6 +54,11 @@
           <description>Check it to predefine cluster config</description>
           <defaultValue>true</defaultValue>
         </hudson.model.BooleanParameterDefinition>
+        <hudson.model.BooleanParameterDefinition>
+          <name>UPDATE_FUEL</name>
+          <description>Update fuel version to latest MU (7.0 and 8.0 only)</description>
+          <defaultValue>false</defaultValue>
+        </hudson.model.BooleanParameterDefinition>
         <hudson.model.ChoiceParameterDefinition>
           <name>NETWORK_TYPE</name>
           <description>Choose a network type or leave it empty</description>
@@ -116,6 +121,7 @@
 export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}
 export PYTHONUNBUFFERED=1
 curl -o ./build_cluster.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/build_cluster.py&quot;
+curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/update_helper.sh&quot;
 curl -o ./scancodes.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/scancodes.py&quot;
 
 python build_cluster.py
