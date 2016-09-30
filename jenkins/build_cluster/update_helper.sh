@@ -45,14 +45,50 @@ crap () {
 	exit ${2:-1}
 }
 
+wait_for () {
+    local cnt=0
+    while true; do
+		eval $1 && return 0
+		((cnt++))
+		echo -en "$cnt... "
+		[[ $cnt -eq $2 ]] && return 1
+		sleep $3
+	done;
+}
 
 version=$(get_fuel_version) || crap "error: can't get fuel version"
 
+
+case $version in
+	7.0.0|8.0)
+		echo "Gues version is $version"
+		;;
+	*)
+		crap "Version $version is not supported by update script"
+		;;
+esac
+
 case $version in 
+	# Check that we have update repo in yum.repos.d
+	7.0.0|8.0)
+		wait_for '[ -f /etc/yum.repos.d/mos[78].0-updates.repo ]' 30 60 || crap "error: timeout waiting of update repo"
+		;;&
+
+	# Check that we have no bootstrap builder right now
+	7.0.0)
+		wait_for '[ $(ps -ef | grep fuel-bootstrap | grep -v grep | wc -l) -eq 0 ]' 30 60 || crap "error: timeout of bootstrap waiting" 
+		;;&
+
+	# Upgrade
 	7.0.0|8.0)
 		upgrade_with_docker  || crap "error: upgrade failed for version $version. See log $upgrade_log on master node."
+		;;&
+
+	# Run bootstap builder
+	7.0.0)
+		RUN_WITH_LOGGER "fuel-bootstrap-image" || crap "error: fuel-bootstrap failed. See log $upgrade_log on master node."
 		;;
-	*) 
-		crap "error: upgrade procedure for version $version not implemented"
+	8.0)
+		RUN_WITH_LOGGER "fuel-bootstrap build --activate" || crap "error: fuel-bootstrap failed. See log $upgrade_log on master node."
 		;;
 esac

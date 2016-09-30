@@ -703,7 +703,6 @@ def main():
 
     inject_ifconfig_ssh()
 
-    start_slaves()
 
     wait_for_api_is_ready()
 
@@ -714,6 +713,8 @@ def main():
             print("fuel update complete")
         else:
             print("ERROR: unable to update fuel")
+
+    start_slaves()
 
     configure_nailgun()
 
