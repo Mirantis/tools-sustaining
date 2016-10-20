@@ -40,6 +40,13 @@ upgrade_with_docker () {
 	RUN_WITH_LOGGER "dockerctl start all"  || return 1
 }
 
+upgrade_to_9x () {
+    RUN_WITH_LOGGER yum clean all || return 1
+    RUN_WITH_LOGGER yum install python-cudet -y || return 1
+    RUN_WITH_LOGGER update-prepare prepare master || return 1
+    RUN_WITH_LOGGER update-prepare update master || return 1
+}
+
 crap () {
 	echo $1 >&2
 	exit ${2:-1}
@@ -60,7 +67,7 @@ version=$(get_fuel_version) || crap "error: can't get fuel version"
 
 
 case $version in
-	7.0.0|8.0)
+	7.0.0|8.0|9.0)
 		echo "Gues version is $version"
 		;;
 	*)
@@ -74,6 +81,10 @@ case $version in
 		wait_for '[ -f /etc/yum.repos.d/mos[78].0-updates.repo ]' 30 60 || crap "error: timeout waiting of update repo"
 		;;&
 
+	9.0)
+		wait_for '[ -f /etc/yum.repos.d/mos-updates.repo ]' 30 60 || crap "error: timeout waiting of update repo"
+		;;&
+
 	# Check that we have no bootstrap builder right now
 	7.0.0)
 		wait_for '[ $(ps -ef | grep fuel-bootstrap | grep -v grep | wc -l) -eq 0 ]' 30 60 || crap "error: timeout of bootstrap waiting" 
@@ -84,10 +95,16 @@ case $version in
 		upgrade_with_docker  || crap "error: upgrade failed for version $version. See log $upgrade_log on master node."
 		;;&
 
+	9.0)
+		upgrade_to_9x  || crap "error: upgrade failed for version $version. See log $upgrade_log on master node."
+		;;&
+
 	# Run bootstap builder
+    # NOTE: No need to do this step for MOS9 because it's implemented in update procedure
 	7.0.0)
 		RUN_WITH_LOGGER "fuel-bootstrap-image" || crap "error: fuel-bootstrap failed. See log $upgrade_log on master node."
 		;;
+
 	8.0)
 		RUN_WITH_LOGGER "fuel-bootstrap build --activate" || crap "error: fuel-bootstrap failed. See log $upgrade_log on master node."
 		;;
