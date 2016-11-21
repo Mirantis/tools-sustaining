@@ -53,7 +53,7 @@ if cfg["ISO_URL"]:
         .split("/")[-1].split(".torrent")[0]
     # new releases such as 8.0 and 9.0 use new interface naming scheme
     # e.g. 'enp0s4' instead of 'eth1' so we should get version of Fuel from ISO name
-    new_versions = ["8.0", "9.0", "10.0"]
+    new_versions = ["8.0", "9.0", "10.0", "11.0"]
     is_new = any(v in cfg["ISO_URL"] for v in new_versions)
 
 cfg["PREPARE_CLUSTER"] = os.getenv("PREPARE_CLUSTER")
