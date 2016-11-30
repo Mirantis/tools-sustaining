@@ -15,7 +15,9 @@ import netaddr
 import scancodes
 
 # CONST
-UPDATE_HELPER="update_helper.sh"
+UPDATE_HELPER = "update_helper.sh"
+SSH_PARAMS = ["-o", "UserKnownHostsFile=/dev/null",
+              "-o", "StrictHostKeyChecking=no"]
 
 cfg = dict()
 is_new = False
@@ -72,6 +74,33 @@ try:
     dnl = open(os.devnull, 'w')
 except:
     dnl = None
+
+class SSHHost:
+    def __init__(self, conn_line=None, usr=None, subnet=None, pswd="r00tme"):
+        if subnet is not None:
+            self.conn_line = self._calculate_conn_line(usr, subnet)
+
+        if  conn_line is not None:
+            self.conn_line = conn_line
+
+        self.pswd=pswd
+
+    def _calculate_conn_line(self, usr, subnet):
+        admip = str(subnet.ip + 2)
+        return "{usr}@{admip}".format(usr=usr, admip=admip)
+
+    def execute(self, command):
+        return sshpass(
+            psw = self.pswd,
+            ssh_cmd = ["ssh"]+SSH_PARAMS+[self.conn_line]+command,
+        )
+
+    def put_file(self, filename, dest="/tmp/"):
+        return sshpass (
+            psw = self.pswd,
+            ssh_cmd = ["scp"]+SSH_PARAMS+['./'+filename,self.conn_line+":"+dest],
+        )
+
 
 def pprint_dict(subj):
     if not isinstance(subj, dict):
@@ -443,14 +472,12 @@ def inject_ifconfig_ssh():
             print("{0}...".format(retries), end='')
             time.sleep(60)
 
-def sshpass_admin_node(psw,ssh_cmd):
+def sshpass(psw,ssh_cmd):
     cmd = [
         "sshpass",
         "-p",
         psw,
     ] + ssh_cmd
-
-    print (cmd)
 
     proc = subprocess.Popen(
         cmd,
@@ -462,42 +489,24 @@ def sshpass_admin_node(psw,ssh_cmd):
     if proc.returncode == 0:
         return True
     else:
+        print("ERROR: command "+' '.join(cmd)+" failed.")
         return False
 
-def admin_ssh_conn_line(usr,subnet):
-    admip = str(subnet.ip + 2)
-    return "{usr}@{admip}".format(usr=usr, admip=admip)
 
-def copy_update_helper(conn_line,psw):
-    return sshpass_admin_node (psw,ssh_cmd=[
-        "scp",
-        "-o",
-        "UserKnownHostsFile=/dev/null",
-        "-o",
-        "StrictHostKeyChecking=no",
-        "./"+UPDATE_HELPER,
-        conn_line+":/tmp/",])
-
-def do_update(conn_line,psw):
-    if copy_update_helper(conn_line,psw):
-        return sshpass_admin_node(
-            psw=psw,
-            ssh_cmd=["ssh",
-                    "-o",
-                    "UserKnownHostsFile=/dev/null",
-                    "-o",
-                    "StrictHostKeyChecking=no",
-                    conn_line,
-                    "/tmp/"+UPDATE_HELPER,],)
+def do_update(node):
+    if node.put_file(UPDATE_HELPER):
+        return node.execute(["/tmp/"+UPDATE_HELPER])
     else:
         print ("ERROR: Unable to copy update script to admin node")
         return False
+
 
 def start_slaves():
     for num in range(cfg["NODES_COUNT"]):
         name = "{0}_slave_{1}".format(cfg["ENV_NAME"], num)
         print ("Starting: {0}".format(name))
         start_node(name)
+
 
 def wait_for_api_is_ready():
     cmd = ["sshpass", "-p", cfg["FUEL_SSH_PASSWORD"], "ssh", "-o"
@@ -706,10 +715,12 @@ def main():
 
     wait_for_api_is_ready()
 
+    admin_node=SSHHost(usr = cfg["FUEL_SSH_USERNAME"],
+        subnet=cfg["ADMIN_SUBNET"],
+        psw = cfg["FUEL_SSH_PASSWORD"],)
+
     if cfg["UPDATE_FUEL"]=="true":
-        if do_update(
-            admin_ssh_conn_line(usr = cfg["FUEL_SSH_USERNAME"],subnet=cfg["ADMIN_SUBNET"]),
-            psw = cfg["FUEL_SSH_PASSWORD"],):
+        if do_update(admin_node):
             print("fuel update complete")
         else:
             print("ERROR: unable to update fuel")

@@ -1,41 +1,47 @@
 #!/usr/bin/env python
 
 import build_cluster
+import netaddr
 
 
-CONNECT_LINE = "root@621_admin"
-PSWD= "r00tme"
+CONNECT_LINE = "root@780_admin"
+PSWD = "r00tme"
 
-def test_bool(name,func):
+
+def test_bool(name, func):
     if func:
         print "\033[32mOK\033[00m   - "+name
     else:
         print "\033[31mOK\033[00m   - "+name
 
+
 def main():
 
-    test_bool("sshpass_admin_node",
-        build_cluster.sshpass_admin_node (
-            psw=PSWD,
-            ssh_cmd=["ssh", CONNECT_LINE , "hostname"]
-        )
-    )
+    node = build_cluster.SSHHost(conn_line=CONNECT_LINE,
+                                 pswd=PSWD)
 
-    test_bool("sshpass_admin_node fail exit code",
-        not build_cluster.sshpass_admin_node (
-            psw=PSWD,
-            ssh_cmd=["ssh", CONNECT_LINE , "exit 1"]
-        )
-    )
+    test_bool("ssh execute",
+              node.execute(["hostname"]))
 
-    test_bool("copy_update_helper",
-        build_cluster.copy_update_helper (CONNECT_LINE, PSWD)
-    )
+    test_bool("ssh execute fail",
+              not node.execute(["exit", "1"]))
 
-# NOTE: can take to many time...
-#    test_bool("do update",
-#        build_cluster.do_update (CONNECT_LINE, PSWD)
-#    )
+    test_bool("scp put file",
+            node.put_file("./update_helper.sh"))
+
+    test_bool("scp put file check file",
+              node.execute(["test", "-f","/tmp/update_helper.sh"]))
+
+    test_bool("scp put file remove file",
+              node.execute(["rm", "-f","/tmp/update_helper.sh"]))
+
+    test_bool("scp put file check file",
+              not node.execute(["test", "-f","/tmp/update_helper.sh"]))
+
+    # NOTE: can take too many time...
+    test_bool("do update",
+              build_cluster.do_update (node))
+
 
 if __name__ == "__main__":
     main()
