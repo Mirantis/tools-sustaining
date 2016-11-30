@@ -394,13 +394,14 @@ def send_keys(instance):
         " ip={ip}\n"
         " netmask={netmask}\n"
         " gw={gw}\n"
-        " dns1={gw}\n"
+        " dns1={dns}\n"
         " showmenu=no\n"
         " <Enter>\n"
     ).format(
         ip=str(cfg["ADMIN_SUBNET"].ip + 2),
         netmask=str(cfg["ADMIN_SUBNET"].netmask),
-        gw=str(cfg["ADMIN_SUBNET"].ip + 1)
+        gw=str(cfg["ADMIN_SUBNET"].ip + 1),
+        dns="172.18.16.10", #Moscow DNS
     )
     print (keys)
     key_codes = scancodes.from_string(str(keys))
@@ -736,7 +737,7 @@ def main():
         pswd = cfg["FUEL_SSH_PASSWORD"],)
 
     if cfg["ADD_CENT_REPO"]!="":
-        add_cent_repo(cfg["ADD_CENT_REPO"])
+        add_cent_repo(admin_node,cfg["ADD_CENT_REPO"])
 
     if cfg["UPDATE_FUEL"]=="true":
         if do_update(admin_node):

@@ -145,7 +145,7 @@ export PYTHONUNBUFFERED=1
 curl -o ./build_cluster.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/build_cluster.py&quot;
 curl -o ./scancodes.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/scancodes.py&quot;
 curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/update_helper.sh&quot;
-curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/repo_helper.sh&quot;
+curl -o ./repo_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/repo_helper.sh&quot;
 
 chmod +x update_helper.sh
 chmod +x repo_helper.sh
