@@ -736,7 +736,7 @@ def main():
         subnet=cfg["ADMIN_SUBNET"],
         pswd = cfg["FUEL_SSH_PASSWORD"],)
 
-    if cfg["ADD_CENT_REPO"]!="":
+    if cfg["ADD_CENT_REPO"]!="" and cfg["ADD_CENT_REPO"] is not None:
         add_cent_repo(admin_node,cfg["ADD_CENT_REPO"])
 
     if cfg["UPDATE_FUEL"]=="true":
