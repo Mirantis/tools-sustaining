@@ -16,6 +16,7 @@ import scancodes
 
 # CONST
 UPDATE_HELPER = "update_helper.sh"
+REPO_HELPER = "repo_helper.sh"
 SSH_PARAMS = ["-o", "UserKnownHostsFile=/dev/null",
               "-o", "StrictHostKeyChecking=no"]
 
@@ -60,6 +61,7 @@ if cfg["ISO_URL"]:
 
 cfg["PREPARE_CLUSTER"] = os.getenv("PREPARE_CLUSTER")
 cfg["UPDATE_FUEL"] = os.getenv("UPDATE_FUEL")
+cfg["ADD_CENT_REPO"] = os.getenv("ADD_CENT_REPO")
 cfg["RELEASE"] = os.getenv("RELEASE")
 cfg["HA"] = os.getenv("HA")
 cfg["NETWORK_TYPE"] = os.getenv("NETWORK_TYPE")
@@ -493,6 +495,20 @@ def sshpass(psw,ssh_cmd):
         return False
 
 
+def add_cent_repo(node, repolist):
+    if node.put_file(REPO_HELPER):
+        i = 1
+        for repo in repolist.split('\n'):
+            if not node.execute(["/tmp/"+REPO_HELPER,"add"+str(i), repo]):
+                print ("ERROR: Unable to add repo " + repo)
+                return False
+            i = i + 1
+        return True
+    else:
+        print ("ERROR: Unable to copy repo script to admin node")
+        return False
+
+
 def do_update(node):
     if node.put_file(UPDATE_HELPER):
         return node.execute(["/tmp/"+UPDATE_HELPER])
@@ -717,7 +733,10 @@ def main():
 
     admin_node=SSHHost(usr = cfg["FUEL_SSH_USERNAME"],
         subnet=cfg["ADMIN_SUBNET"],
-        psw = cfg["FUEL_SSH_PASSWORD"],)
+        pswd = cfg["FUEL_SSH_PASSWORD"],)
+
+    if cfg["ADD_CENT_REPO"]!="":
+        add_cent_repo(cfg["ADD_CENT_REPO"])
 
     if cfg["UPDATE_FUEL"]=="true":
         if do_update(admin_node):

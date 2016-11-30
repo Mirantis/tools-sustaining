@@ -14,11 +14,28 @@
           <description>Tag is used in name of build.</description>
           <defaultValue></defaultValue>
         </hudson.model.StringParameterDefinition>
-        <hudson.model.StringParameterDefinition>
+        <jp.ikedam.jenkins.plugins.extensible__choice__parameter.ExtensibleChoiceParameterDefinition plugin="extensible-choice-parameter@1.3.2">
           <name>ISO_URL</name>
-          <description>Required! Can be direct URL or URL to torrent-file. Public ISOs are available here - &lt;b&gt;http://vault.infra.mirantis.net/&lt;/b&gt;</description>
-          <defaultValue></defaultValue>
-        </hudson.model.StringParameterDefinition>
+          <description>&lt;b&gt;&lt;a href=&quot;http://vault.infra.mirantis.net/&quot;&gt;http://vault.infra.mirantis.net/&lt;/a&gt;&lt;/b&gt; - public ISOs are available here.
+Required! Can be direct URL or URL to torrent-file. </description>
+          <editable>true</editable>
+          <choiceListProvider class="jp.ikedam.jenkins.plugins.extensible_choice_parameter.TextareaChoiceListProvider">
+            <choiceList class="java.util.RandomAccessSubList">
+              <l class="java.util.Arrays$ArrayList">
+                <a class="string-array">
+                  <string>http://vault.infra.mirantis.net/MirantisOpenStack-9.0.iso.torrent</string>
+                  <string>http://vault.infra.mirantis.net/MirantisOpenStack-8.0.iso.torrent</string>
+                  <string>http://vault.infra.mirantis.net/MirantisOpenStack-7.0.iso.torrent</string>
+                  <string>http://vault.infra.mirantis.net/MirantisOpenStack-6.1.iso.torrent</string>
+                  <string>http://vault.infra.mirantis.net/MirantisOpenStack-5.1.1.iso.torrent</string>
+                  <string></string>
+                </a>
+              </l>
+              <offset>0</offset>
+              <size>5</size>
+            </choiceList>
+          </choiceListProvider>
+        </jp.ikedam.jenkins.plugins.extensible__choice__parameter.ExtensibleChoiceParameterDefinition>
         <hudson.model.StringParameterDefinition>
           <name>NODES_COUNT</name>
           <description>Quantity of cluster nodes without fuel-master node.</description>
@@ -56,9 +73,14 @@
         </hudson.model.BooleanParameterDefinition>
         <hudson.model.BooleanParameterDefinition>
           <name>UPDATE_FUEL</name>
-          <description>Update fuel version to latest MU (7.0 and 8.0 only)</description>
+          <description>Update fuel version to latest MU (7.0 and 8.0 only) or upgrade release 9.x (9.0 to 9.1)</description>
           <defaultValue>false</defaultValue>
         </hudson.model.BooleanParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>ADD_CENT_REPO</name>
+          <description>Add repo url. One per line. It will be added as add&lt;i&gt;.repo</description>
+          <defaultValue></defaultValue>
+        </hudson.model.TextParameterDefinition>
         <hudson.model.ChoiceParameterDefinition>
           <name>NETWORK_TYPE</name>
           <description>Choose a network type or leave it empty</description>
@@ -121,8 +143,12 @@
 export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}
 export PYTHONUNBUFFERED=1
 curl -o ./build_cluster.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/build_cluster.py&quot;
-curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/update_helper.sh&quot;
 curl -o ./scancodes.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/scancodes.py&quot;
+curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/update_helper.sh&quot;
+curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/repo_helper.sh&quot;
+
+chmod +x update_helper.sh
+chmod +x repo_helper.sh
 
 python build_cluster.py
 
