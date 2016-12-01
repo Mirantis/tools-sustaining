@@ -19,6 +19,7 @@ UPDATE_HELPER = "update_helper.sh"
 REPO_HELPER = "repo_helper.sh"
 SSH_PARAMS = ["-o", "UserKnownHostsFile=/dev/null",
               "-o", "StrictHostKeyChecking=no"]
+DNS_SERVER = "172.18.16.10" #Moscow DNS
 
 cfg = dict()
 is_new = False
@@ -401,7 +402,7 @@ def send_keys(instance):
         ip=str(cfg["ADMIN_SUBNET"].ip + 2),
         netmask=str(cfg["ADMIN_SUBNET"].netmask),
         gw=str(cfg["ADMIN_SUBNET"].ip + 1),
-        dns="172.18.16.10", #Moscow DNS
+        dns=DNS_SERVER,
     )
     print (keys)
     key_codes = scancodes.from_string(str(keys))
@@ -565,6 +566,7 @@ def configure_nailgun():
     if cfg["NETWORK_TYPE"] == "nova":
         sed = "/bin/sed -i -e 's/cidr: 172.16.0.0\/24$/cidr: {pub_net}\/{prefix}/g'" \
             " -e 's/gateway: 172.16.0.1$/gateway: {pub_gw}/g'" \
+            " -e 's/- 8.8.4.4$/- {pdns}/g'" \
             " -e 's/- 172.16.0.2$/- {pstart}/g'" \
             " -e 's/- 172.16.0.127$/- {pend}/g'" \
             " -e 's/- 172.16.0.128$/- {fstart}/g'" \
@@ -572,12 +574,16 @@ def configure_nailgun():
     else:
         sed = "/bin/sed -i -e 's/cidr: 172.16.0.0\/24$/cidr: {pub_net}\/{prefix}/g'" \
             " -e 's/gateway: 172.16.0.1$/gateway: {pub_gw}/g'" \
+            " -e 's/- 8.8.4.4$/- {pdns}/g'" \
             " -e 's/- 172.16.0.2$/- {pstart}/g'" \
             " -e 's/- 172.16.0.126$/- {pend}/g'" \
             " -e 's/- 172.16.0.130$/- {fstart}/g'" \
             " -e 's/- 172.16.0.254$/- {fend}/g' /root/network_1.yaml;" \
             "sed -i -e '/public_network_assignment:$/" \
-            "{{:a N; s/value:.*$/value: true/; t b ; ba ; :b }}' /root/settings_1.yaml;"
+            " {{:a N; s/value:.*$/value: true/; t b ; ba ; :b }}'" \
+            " -e 's/8.8.8.8/{pdns}/g' /root/settings_1.yaml;"
+
+    sed = sed + " sed -i -e 's/8.8.8.8/{pdns}/g' /etc/hiera/astute.yaml;"
 
     sed = sed.format(
         pub_net=str(cfg["PUBLIC_SUBNET"].ip),
@@ -586,7 +592,8 @@ def configure_nailgun():
         pstart=str(cfg["PUBLIC_SUBNET"].ip + 3),
         pend=str(cfg["PUBLIC_SUBNET"].ip + 4 + int(cfg["NODES_COUNT"])),
         fstart=str(cfg["PUBLIC_SUBNET"].ip + 5 + int(cfg["NODES_COUNT"])),
-        fend=str(netaddr.IPAddress(cfg["PUBLIC_SUBNET"].last) - 1)
+        fend=str(netaddr.IPAddress(cfg["PUBLIC_SUBNET"].last) - 1),
+        pdns=DNS_SERVER
     )
 
     cmd = [
