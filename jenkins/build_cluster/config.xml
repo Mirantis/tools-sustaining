@@ -71,16 +71,16 @@ Required! Can be direct URL or URL to torrent-file. </description>
           <description>Check it to predefine cluster config</description>
           <defaultValue>true</defaultValue>
         </hudson.model.BooleanParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>ADD_CENT_REPO</name>
+          <description>Add repo url. One per line. It will be added as addN.repo. It will be used in update. </description>
+          <defaultValue></defaultValue>
+        </hudson.model.TextParameterDefinition>
         <hudson.model.BooleanParameterDefinition>
           <name>UPDATE_FUEL</name>
           <description>Update fuel version to latest MU (7.0 and 8.0 only) or upgrade release 9.x (9.0 to 9.1)</description>
           <defaultValue>false</defaultValue>
         </hudson.model.BooleanParameterDefinition>
-        <hudson.model.TextParameterDefinition>
-          <name>ADD_CENT_REPO</name>
-          <description>Add repo url. One per line. It will be added as add&lt;i&gt;.repo</description>
-          <defaultValue></defaultValue>
-        </hudson.model.TextParameterDefinition>
         <hudson.model.ChoiceParameterDefinition>
           <name>NETWORK_TYPE</name>
           <description>Choose a network type or leave it empty</description>
@@ -121,6 +121,11 @@ Required! Can be direct URL or URL to torrent-file. </description>
           <triggerIfResult>allCases</triggerIfResult>
           <nodeEligibility class="org.jvnet.jenkins.plugins.nodelabelparameter.node.AllNodeEligibility"/>
         </org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition>
+        <hudson.model.StringParameterDefinition>
+          <name>TOOLS_COMMIT</name>
+          <description>Commit of https://review.fuel-infra.org/#/q/project:tools/sustaining. For testing new versions only.</description>
+          <defaultValue></defaultValue>
+        </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
     <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
@@ -142,13 +147,21 @@ Required! Can be direct URL or URL to torrent-file. </description>
       <command>set -x
 export ENV_NAME=${BUILD_USER_ID}-${BUILD_NUMBER}
 export PYTHONUNBUFFERED=1
-curl -o ./build_cluster.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/build_cluster.py&quot;
-curl -o ./scancodes.py &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/scancodes.py&quot;
-curl -o ./update_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/update_helper.sh&quot;
-curl -o ./repo_helper.sh &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/repo_helper.sh&quot;
 
-chmod +x update_helper.sh
-chmod +x repo_helper.sh
+commit_url=&quot;&quot;
+
+
+if [ -n &quot;$TOOLS_COMMIT&quot; ]; then
+    echo &quot;Using non master commit of build_cluster tools (${TOOLS_COMMIT})&quot;
+	commit_url=&quot;;hb=${TOOLS_COMMIT}&quot;
+fi
+
+for file in build_cluster.py scancodes.py update_helper.sh repo_helper.sh; do
+    #curl -o ./${file} &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/${file}&quot;
+    curl -o ./${file} &quot;https://review.fuel-infra.org/gitweb?p=tools/sustaining.git;a=blob_plain;f=jenkins/build_cluster/${file}${commit_url}&quot;
+    chmod +x ${file}
+done;
+
 
 python build_cluster.py
 
