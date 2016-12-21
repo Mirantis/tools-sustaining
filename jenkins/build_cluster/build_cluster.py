@@ -18,7 +18,8 @@ import scancodes
 UPDATE_HELPER = "update_helper.sh"
 REPO_HELPER = "repo_helper.sh"
 SSH_PARAMS = ["-o", "UserKnownHostsFile=/dev/null",
-              "-o", "StrictHostKeyChecking=no"]
+              "-o", "StrictHostKeyChecking=no",
+              "-o", "LogLevel=quiet"] # That supress most of warnings and info messages
 DNS_SERVER = "172.18.16.10" #Moscow DNS
 
 cfg = dict()
@@ -512,10 +513,21 @@ def add_cent_repo(node, repolist):
 
 
 def do_update(node):
-    if node.put_file(UPDATE_HELPER):
-        return node.execute(["/tmp/"+UPDATE_HELPER])
-    else:
+    if not node.put_file(UPDATE_HELPER):
         print ("ERROR: Unable to copy update script to admin node")
+        return False
+
+    if not node.execute(["/tmp/"+UPDATE_HELPER,"first"]):
+        print ("ERROR: First phase of upgrade faileduuu")
+        return False
+        
+    node.execute(["/tmp/"+UPDATE_HELPER,"reboot"])
+    time.sleep(60 * 5)
+
+    if node.put_file(UPDATE_HELPER):
+        return node.execute(["/tmp/"+UPDATE_HELPER,"second"])
+    else:
+        print ("ERROR: Unable to copy update script to admin node") 
         return False
 
 
