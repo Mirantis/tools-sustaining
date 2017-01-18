@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import io
 import os
 import re
 import signal
@@ -20,6 +21,7 @@ REPO_HELPER = "repo_helper.sh"
 SSH_PARAMS = ["-o", "UserKnownHostsFile=/dev/null",
               "-o", "StrictHostKeyChecking=no",
               "-o", "LogLevel=quiet"] # That supress most of warnings and info messages
+SSH_PUBKEYS_FILE = "keys.pub"
 DNS_SERVER = "172.18.16.10" #Moscow DNS
 
 cfg = dict()
@@ -67,6 +69,7 @@ cfg["ADD_CENT_REPO"] = os.getenv("ADD_CENT_REPO")
 cfg["RELEASE"] = os.getenv("RELEASE")
 cfg["HA"] = os.getenv("HA")
 cfg["NETWORK_TYPE"] = os.getenv("NETWORK_TYPE")
+cfg["SSH_PUB_KEYS"] = os.getenv("SSH_PUB_KEYS")
 
 try:
     vconn = libvirt.open("qemu:///system")
@@ -89,6 +92,8 @@ class SSHHost:
 
         self.pswd=pswd
 
+        self._valid_key = re.compile('^ssh-rsa.*$')
+
     def _calculate_conn_line(self, usr, subnet):
         admip = str(subnet.ip + 2)
         return "{usr}@{admip}".format(usr=usr, admip=admip)
@@ -104,6 +109,17 @@ class SSHHost:
             psw = self.pswd,
             ssh_cmd = ["scp"]+SSH_PARAMS+['./'+filename,self.conn_line+":"+dest],
         )
+
+    def put_ssh_pub_keys(self, keys):
+        with io.open(SSH_PUBKEYS_FILE, "wb") as ofile:
+            for key in keys.split('\n'):
+                if self._valid_key.match(key):
+                    ofile.write(key)
+                    ofile.write('\n')
+            ofile.close()
+
+        self.put_file(SSH_PUBKEYS_FILE)
+        return self.execute(["cat", "/tmp/" + SSH_PUBKEYS_FILE, ">>", "~/.ssh/authorized_keys"])
 
 
 def pprint_dict(subj):
@@ -695,6 +711,8 @@ PUBLIC:
     print(summary)
     print ("\nFUEL ACCESS:\n\thttp://{0}:8000".format(
         str(cfg["PUBLIC_SUBNET"].ip + 2)))
+    print ("\nSSH ACCESS:\n\tssh root@{0}".format(
+        str(cfg["PUBLIC_SUBNET"].ip + 2)))
     print ("\nVNC CONSOLES:\n")
     for dom in vconn.listAllDomains():
         if dom.name().startswith(cfg["ENV_NAME"]):
@@ -757,6 +775,9 @@ def main():
 
     if cfg["ADD_CENT_REPO"]!="" and cfg["ADD_CENT_REPO"] is not None:
         add_cent_repo(admin_node,cfg["ADD_CENT_REPO"])
+
+    if cfg["SSH_PUB_KEYS"]!="" and cfg["SSH_PUB_KEYS"] is not None:
+        admin_node.put_ssh_pub_keys(cfg["SSH_PUB_KEYS"])
 
     if cfg["UPDATE_FUEL"]=="true":
         if do_update(admin_node):

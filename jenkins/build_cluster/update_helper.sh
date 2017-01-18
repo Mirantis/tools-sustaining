@@ -70,10 +70,11 @@ wait_for () {
     while true; do
 		eval $1 && return 0
 		((cnt++))
-		echo -en "$cnt... "
+		echo -en "."
 		[[ $cnt -eq $2 ]] && return 1
 		sleep $3
 	done;
+	echo ""
 }
 
 first_phase () {

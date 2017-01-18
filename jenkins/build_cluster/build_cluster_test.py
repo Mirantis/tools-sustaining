@@ -4,7 +4,7 @@ import build_cluster
 import netaddr
 
 
-CONNECT_LINE = "root@780_admin"
+CONNECT_LINE = "root@test_admin"
 PSWD = "r00tme"
 
 
@@ -38,7 +38,7 @@ def main():
     test_bool("scp put file check file",
               not node.execute(["test", "-f","/tmp/update_helper.sh"]))
 
-    # NOTE: can take too many time...
+   # NOTE: can take too many time...
     test_bool("do update",
               build_cluster.do_update (node))
     repolist='''http://mirror.fuel-infra.org/mos-repos/centos/mos9.0-centos7/updates/x86_64/
@@ -62,6 +62,21 @@ def main():
 
     test_bool("add repo rm repo file 2",
               node.execute(["rm", "-f","/etc/yum.repos.d/add2.repo"]))
+
+    test_bool("add pub keys",
+              node.put_ssh_pub_keys("""ssh-rsa AAAAB6NzaC1yc2EAAAADAQABAAABAQC8PWq76FFIKmxPGMdWErBMEFwtb2NZYeTxu1lMVacC1QemMMaoybNisvD+L4JyaiC+zFQzlHlCDgicCgw7TXkgFtoyttLMxbshcu+wx0uG8bMlQTZ5DZ7ywwBU7+OysSgBEvju1dlMF7wOKDcYLfJxbYoUYvq+tgVbBWBFm8q+PrMvZZGfPX5M6m/sdpiFc3/f1K6Hh+DeV+9hFx/2vES62Qwv76zzr7oGS3tAi2RyBFt6BWrJx9vqa25AAoqzRsHoj0+0iAi1reZQ3jvz3FIsfgVN+ymVv431X4Gr3H8+BMj56VpT5z8McXj9+o+qoK70YLrtg2z2IpSONOE7o3JX ac@achevychalov_
+
+XXXXXJJJJJJJJJ ac@achevycahlov
+ssh-rsa AAAAB7NzaC1yc2EAAAADAQABAAABAQC8PWq76FFIKmxPGMdWErBMEFwtb2NZYeTxu1lMVacC1QemMMaoybNisvD+L4JyaiC+zFQzlHlCDgicCgw7TXkgFtoyttLMxbshcu+wx0uG8bMlQTZ5DZ7ywwBU7+OysSgBEvju1dlMF7wOKDcYLfJxbYoUYvq+tgVbBWBFm8q+PrMvZZGfPX5M6m/sdpiFc3/f1K6Hh+DeV+9hFx/2vES62Qwv76zzr7oGS3tAi2RyBFt6BWrJx9vqa25AAoqzRsHoj0+0iAi1reZQ3jvz3FIsfgVN+ymVv431X4Gr3H8+BMj56VpT5z8McXj9+o+qoK70YLrtg2z2IpSONOE7o3JX ac@achevychalov_"""))
+
+    test_bool("add pub keys CHECK1",
+              node.execute(["egrep","-q","AAAAB6N", ".ssh/authorized_keys"]))
+
+    test_bool("add pub keys CHECK2",
+              node.execute(["egrep","-q","AAAAB7N", ".ssh/authorized_keys"]))
+
+    test_bool("add pub keys CHECK3",
+              not node.execute(["egrep","-q","XXXXXJ", ".ssh/authorized_keys"]))
 
 if __name__ == "__main__":
     main()

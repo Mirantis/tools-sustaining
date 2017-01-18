@@ -113,6 +113,11 @@ Required! Can be direct URL or URL to torrent-file. </description>
             </a>
           </choices>
         </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.TextParameterDefinition>
+          <name>SSH_PUB_KEYS</name>
+          <description>Add you keys to default value of job</description>
+          <defaultValue></defaultValue>
+        </hudson.model.TextParameterDefinition>
         <org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition plugin="nodelabelparameter@1.5.1">
           <name>Label of Slave</name>
           <description>You can choose where to deploy your cluster by typing exact slave label here.</description>
@@ -158,7 +163,7 @@ fi
 
 for file in build_cluster.py scancodes.py update_helper.sh repo_helper.sh; do
     #curl -o ./${file} &quot;https://raw.githubusercontent.com/Mirantis/tools-sustaining/master/jenkins/build_cluster/${file}&quot;
-    curl -o ./${file} &quot;https://review.fuel-infra.org/gitweb?p=tools/sustaining.git;a=blob_plain;f=jenkins/build_cluster/${file}${commit_url}&quot;
+    curl -s -o ./${file} &quot;https://review.fuel-infra.org/gitweb?p=tools/sustaining.git;a=blob_plain;f=jenkins/build_cluster/${file}${commit_url}&quot;
     chmod +x ${file}
 done;
 
