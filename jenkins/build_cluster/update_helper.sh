@@ -53,11 +53,35 @@ upgrade_second_phase_8x (){
 	RUN_WITH_LOGGER "dockerctl start all" || return 1
 }
 
-upgrade_to_9x () {
+upgrade_to_9_1 () {
     RUN_WITH_LOGGER yum clean all || return 1
     RUN_WITH_LOGGER yum install python-cudet -y || return 1
     RUN_WITH_LOGGER update-prepare prepare master || return 1
     RUN_WITH_LOGGER update-prepare update master || return 1
+}
+
+upgrade_to_9_2 () {
+	RUN_WITH_LOGGER yum install -y http://mirror.fuel-infra.org/mos-repos/centos/mos9.0-centos7/9.2-updates/x86_64/Packages/mos-release-9.2-1.el7.x86_64.rpm || return 1
+	RUN_WITH_LOGGER yum clean all || return 1
+	RUN_WITH_LOGGER yum install -y mos-playbooks || return 1
+	RUN_WITH_LOGGER cd /root/mos_playbooks/mos_mu/ || return 1
+	RUN_WITH_LOGGER ansible-playbook playbooks/mos9_prepare_fuel.yml || return 1
+	RUN_WITH_LOGGER ansible-playbook playbooks/update_fuel.yml -e '{"rebuild_bootstrap":false}' || return 1
+	RUN_WITH_LOGGER ansible-playbook playbooks/mos9_fuel_upgrade_kernel_4.4.yml || return 1
+}
+
+upgrade_to_9x () {
+	case $target_version in
+		latest_released_mu|9.2)
+			upgrade_to_9_2
+			;;
+		9.1)
+			upgrade-to_9_1
+			;;
+		*)
+			crap "error: Have no idea about target version $target_version for $version"
+			;;
+	esac
 }
 
 crap () {
@@ -153,6 +177,8 @@ esac
 
 # For some of the upgrade procedures we have to split upgrade on two phase with reboot between.
 phase=${1:-"second"}
+
+target_version=${2}
 
 case $phase in
 	first|second|reboot)

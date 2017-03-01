@@ -65,6 +65,7 @@ if cfg["ISO_URL"]:
 
 cfg["PREPARE_CLUSTER"] = os.getenv("PREPARE_CLUSTER")
 cfg["UPDATE_FUEL"] = os.getenv("UPDATE_FUEL")
+cfg["UPDATE_TO"] = os.getenv("UPDATE_TO","latest_released_mu")
 cfg["ADD_CENT_REPO"] = os.getenv("ADD_CENT_REPO")
 cfg["RELEASE"] = os.getenv("RELEASE")
 cfg["HA"] = os.getenv("HA")
@@ -533,15 +534,15 @@ def do_update(node):
         print ("ERROR: Unable to copy update script to admin node")
         return False
 
-    if not node.execute(["/tmp/"+UPDATE_HELPER,"first"]):
-        print ("ERROR: First phase of upgrade faileduuu")
+    if not node.execute(["/tmp/"+UPDATE_HELPER,"first",cfg["UPDATE_TO"]]):
+        print ("ERROR: First phase of upgrade failed")
         return False
         
-    node.execute(["/tmp/"+UPDATE_HELPER,"reboot"])
+    node.execute(["/tmp/"+UPDATE_HELPER,"reboot",cfg["UPDATE_TO"]])
     time.sleep(60 * 5)
 
     if node.put_file(UPDATE_HELPER):
-        return node.execute(["/tmp/"+UPDATE_HELPER,"second"])
+        return node.execute(["/tmp/"+UPDATE_HELPER,"second",cfg["UPDATE_TO"]])
     else:
         print ("ERROR: Unable to copy update script to admin node") 
         return False

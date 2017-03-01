@@ -82,6 +82,17 @@ Required! Can be direct URL or URL to torrent-file. </description>
           <defaultValue>false</defaultValue>
         </hudson.model.BooleanParameterDefinition>
         <hudson.model.ChoiceParameterDefinition>
+          <name>UPDATE_TO</name>
+          <description>Do not USE! Non production ready!</description>
+          <choices class="java.util.Arrays$ArrayList">
+            <a class="string-array">
+              <string>latest_released_mu</string>
+              <string>9.2</string>
+              <string>9.1</string>
+            </a>
+          </choices>
+        </hudson.model.ChoiceParameterDefinition>
+        <hudson.model.ChoiceParameterDefinition>
           <name>NETWORK_TYPE</name>
           <description>Choose a network type or leave it empty</description>
           <choices class="java.util.Arrays$ArrayList">
@@ -116,7 +127,9 @@ Required! Can be direct URL or URL to torrent-file. </description>
         <hudson.model.TextParameterDefinition>
           <name>SSH_PUB_KEYS</name>
           <description>Add you keys to default value of job</description>
-          <defaultValue></defaultValue>
+          <defaultValue>ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8PWq76FFIKmxPGMdWErBMEFwtb2NZYeTxu1lMVacC1QemMMaoybNisvD+L4JyaiC+zFQzlHlCDgicCgw7TXkgFtoyttLMxbshcu+wx0uG8bMlQTZ5DZ7ywwBU7+OysSgBEvju1dlMF7wOKDcYLfJxbYoUYvq+tgVbBWBFm8q+PrMvZZGfPX5M6m/sdpiFc3/f1K6Hh+DeV+9hFx/2vES62Qwv76zzr7oGS3tAi2RyBFt6BWrJx9vqa25AAoqzRsHoj0+0iAi1reZQ3jvz3FIsfgVN+ymVv431X4Gr3H8+BMj56VpT5z8McXj9+o+qoK70YLrtg2z2IpSONOE7o3JX ac@achevychalov
+
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDrV6q403BYodTCb8BCsWlkW6AHxvtCH5JxI9gUANsvbQd9n8fd16xqgXVecCRBJOS4PVauLNiQPMaj6ZuFeRZ8ZXvX498eNSNa5WhBbSwk0X/DqdK1LN/MStTAtL60JQV0yQSY+BghVJkREw4MJJBksyP0X+OG5AB+ijh/bjsabYr+EQNK+WJblrsRvNNCbjiWPcjzXVMxUrzphB09CYMwWFgx1An5jS7c1EGvXrzf0aK1KkadhGnXcjPACFaMGPYmu5HNgQcRnzNXDQU6PLGeyqNnZYZjHdQWZR88cQywznqzI8y9P4qSOTVStYoKLlYsdQFRTw8sJrRpPZupgSED astupnikov@astupnikov-srv</defaultValue>
         </hudson.model.TextParameterDefinition>
         <org.jvnet.jenkins.plugins.nodelabelparameter.LabelParameterDefinition plugin="nodelabelparameter@1.5.1">
           <name>Label of Slave</name>
