@@ -11,7 +11,7 @@ RUN_WITH_LOGGER () {
 }
 
 get_fuel_version () {
-	# Note we are not using fuel --fuel-version here because it requere 
+	# Note we are not using fuel --fuel-version here because it requere
 	# api up and running
 	if [[ -f /etc/fuel_release ]]; then
 		# That file exist in version >= 8.0
@@ -21,9 +21,9 @@ get_fuel_version () {
 		echo "notice: /etc/fuel_release not found we are low than MOS8" >&2
 
 		# tring to gues from rpm
-		if rpm -qa | awk  -F '-' '	BEGIN {ok=0} 
-						/^fuel-[0-9]/ {print $2; ok=1; exit 0;} 
-						END {exit ok?0:1;}'; 
+		if rpm -qa | awk  -F '-' '	BEGIN {ok=0}
+						/^fuel-[0-9]/ {print $2; ok=1; exit 0;}
+						END {exit ok?0:1;}';
 		then
 			return 0
 		else
@@ -51,6 +51,7 @@ upgrade_second_phase_8x (){
 	#RUN_WITH_LOGGER "systemctl start docker.service" || return 1
 	RUN_WITH_LOGGER "docker load -i /var/www/nailgun/docker/images/fuel-images.tar" || return 1
 	RUN_WITH_LOGGER "dockerctl start all" || return 1
+	RUN_WITH_LOGGER "fuel release --sync-deployment-tasks --dir /etc/puppet/liberty-8.0/" || return 1
 }
 
 upgrade_to_9_1 () {
@@ -102,7 +103,7 @@ wait_for () {
 }
 
 first_phase () {
-	case $version in 
+	case $version in
 		# Check that we have update repo in yum.repos.d
 		7.0.0|8.0)
 			wait_for '[ -f /etc/yum.repos.d/mos[78].0-updates.repo ]' 30 60 || crap "error: timeout waiting of update repo"
@@ -114,7 +115,7 @@ first_phase () {
 
 		# Check that we have no bootstrap builder right now
 		7.0.0)
-			wait_for '[ $(ps -ef | grep fuel-bootstrap | grep -v grep | wc -l) -eq 0 ]' 30 60 || crap "error: timeout of bootstrap waiting" 
+			wait_for '[ $(ps -ef | grep fuel-bootstrap | grep -v grep | wc -l) -eq 0 ]' 30 60 || crap "error: timeout of bootstrap waiting"
 			;;&
 
 		# Upgrade
@@ -136,7 +137,7 @@ reboot_phase () {
 	case $version in
 		8.0)
 			echo "Going to reboot node..."
-			shutdown -r +1 
+			shutdown -r +1
 			exit 0
 			;;
 		*)
@@ -146,7 +147,7 @@ reboot_phase () {
 }
 
 second_phase () {
-	case $version in 
+	case $version in
 		# Upgrade
 		8.0)
 			upgrade_second_phase_8x  || crap "error: upgrade failed for version $version. See log $upgrade_log on master node."
