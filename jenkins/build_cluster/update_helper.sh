@@ -77,7 +77,7 @@ upgrade_to_9x () {
 			upgrade_to_9_2
 			;;
 		9.1)
-			upgrade-to_9_1
+			upgrade_to_9_1
 			;;
 		*)
 			crap "error: Have no idea about target version $target_version for $version"
